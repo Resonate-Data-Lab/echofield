@@ -89,20 +89,6 @@ const useAudioField = (nodes, isInteractable) => {
     }
   }, []);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!audioContextRef.current) return;
-      Object.values(sourcesRef.current).forEach(obj => {
-        if (obj.isPlaying && obj.gain && obj.gain.gain.value < 0.001) {
-           try { obj.source.stop(); } catch(e) {}
-           obj.isPlaying = false;
-           obj.source = null;
-           obj.gain = null;
-        }
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     Object.values(sourcesRef.current).forEach(obj => {
@@ -212,14 +198,14 @@ const useAudioField = (nodes, isInteractable) => {
 
   }, [nodes, isInteractable, loadAudio]);
 
-  const silenceAll = useCallback(() => {
+  const fadeOut = useCallback(() => {
       if (!audioContextRef.current) return;
       const ctx = audioContextRef.current;
-      
+
       Object.values(sourcesRef.current).forEach(audioObj => {
           if (audioObj.isPlaying && audioObj.gain) {
               audioObj.gain.gain.cancelScheduledValues(ctx.currentTime);
-              audioObj.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+              audioObj.gain.gain.setTargetAtTime(0, ctx.currentTime, 1.5);
           }
       });
       setActiveNodeId(null);
@@ -233,7 +219,7 @@ const useAudioField = (nodes, isInteractable) => {
     };
   }, []);
 
-  return { initAudio, updateMixing, silenceAll, activeNodeId };
+  return { initAudio, updateMixing, fadeOut, activeNodeId };
 };
 
 /**
@@ -476,7 +462,7 @@ const App = () => {
   
   const activeNodes = viewedPalette ? viewedPalette.nodes : currentPalette;
   const containerRef = useRef(null);
-  const { initAudio, updateMixing, silenceAll, activeNodeId } = useAudioField(activeNodes, !isModalOpen && !isLibraryOpen && !isArchiveModalOpen);
+  const { initAudio, updateMixing, fadeOut, activeNodeId } = useAudioField(activeNodes, !isModalOpen && !isLibraryOpen && !isArchiveModalOpen);
 
   const coverage = useMemo(() => {
     const maxNodes = 12; 
@@ -524,7 +510,7 @@ const App = () => {
     <div 
       className="w-full h-screen bg-neutral-900 text-neutral-200 overflow-hidden font-sans select-none relative"
       onMouseMove={handleMouseMove}
-      onMouseLeave={silenceAll}
+      onMouseLeave={fadeOut}
       onClick={initAudio} 
     >
       <div ref={containerRef} className="absolute inset-0 z-0">
