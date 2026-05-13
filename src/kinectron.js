@@ -2,8 +2,10 @@
 
 var kinectron;
 // Maximum and minimum depth or distance values reported by the Kinect, expressed in meters.
-var cameraMaxZ = 4.5;
-var cameraMinZ = 1.5;
+var cameraMaxZ = 3.8;
+var cameraMinZ = 1.1;
+var cameraMaxX = 0.65;
+var cameraMinX = 0.35;
 
 function setup() {
   createCanvas(600, 600);
