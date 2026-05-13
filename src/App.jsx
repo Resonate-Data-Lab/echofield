@@ -1,36 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash } from 'lucide-react';
+import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio } from 'lucide-react';
+import { analyzeDescription } from './colorWords';
+import { useKinectron } from './useKinectron';
+import samplePalettes from './samplePalettes';
+
+// IP address of the computer running the Kinectron server.
+// Use '127.0.0.1' if Kinectron is running on this same machine.
+const KINECTRON_IP = '127.0.0.1';
 
 /**
  * ==========================================
- * UTILITIES & MOCK AI
+ * UTILITIES
  * ==========================================
  */
-
-// Simulates an AI analysis of text to return a hex color and emotional sentiment
-const mockAIAnalyzeDescription = (text) => {
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = text.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  const hue = Math.abs(hash % 360);
-  const saturation = 60 + (Math.abs(hash) % 40); 
-  const lightness = 45 + (Math.abs(hash) % 30);
-
-  const hslToHex = (h, s, l) => {
-    l /= 100;
-    const a = s * Math.min(l, 1 - l) / 100;
-    const f = n => {
-      const k = (n + h / 30) % 12;
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-  };
-
-  return hslToHex(hue, saturation, lightness);
-};
 
 // Maps a Hex color to an X/Y position on the field
 const mapColorToPosition = (hex) => {
@@ -102,6 +84,7 @@ const useAudioField = (nodes, isInteractable) => {
 
   const loadAudio = useCallback(async (node) => {
     if (!audioContextRef.current) return;
+    if (!node.audioUrl) return;
     if (sourcesRef.current[node.id] && sourcesRef.current[node.id].buffer) return;
 
     if (!sourcesRef.current[node.id]) {
@@ -271,9 +254,12 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
 
   useEffect(() => {
     if (text.length > 5) {
-      const color = mockAIAnalyzeDescription(text);
-      setSuggestedColor(color);
-      setFinalColor(color);
+      const timer = setTimeout(() => {
+        const color = analyzeDescription(text);
+        setSuggestedColor(color);
+        setFinalColor(color);
+      }, 650);
+      return () => clearTimeout(timer);
     }
   }, [text]);
 
@@ -366,9 +352,9 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
              </div>
              
              <div className="flex items-center space-x-3 bg-neutral-800 p-2 rounded-lg">
-                <div 
+                <div
                   className="w-10 h-10 rounded-md shadow-inner border border-white/10"
-                  style={{ backgroundColor: finalColor }}
+                  style={{ backgroundColor: finalColor, transition: 'background-color 0.9s ease' }}
                 />
                 
                 <div className="flex-1 flex items-center space-x-2 border-l border-white/10 pl-3">
@@ -451,7 +437,7 @@ const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette }) => {
 };
 
 const App = () => {
-  const [palettes, setPalettes] = useState([]); 
+  const [palettes, setPalettes] = useState(samplePalettes); 
   const [currentPalette, setCurrentPalette] = useState([]);
   const [viewedPalette, setViewedPalette] = useState(null);
   
@@ -459,13 +445,15 @@ const App = () => {
   const [isArchiveModalOpen, setArchiveModalOpen] = useState(false);
   const [isLibraryOpen, setLibraryOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
-  
+  const [kinectEnabled, setKinectEnabled] = useState(import.meta.env.VITE_KINECT_ON === 'true');
+  const [kinectPosition, setKinectPosition] = useState(null);
+
   const activeNodes = viewedPalette ? viewedPalette.nodes : currentPalette;
   const containerRef = useRef(null);
   const { initAudio, updateMixing, fadeOut, activeNodeId } = useAudioField(activeNodes, !isModalOpen && !isLibraryOpen && !isArchiveModalOpen);
 
   const coverage = useMemo(() => {
-    const maxNodes = 12; 
+    const maxNodes = 12;
     return Math.min(100, Math.round((currentPalette.length / maxNodes) * 100));
   }, [currentPalette]);
 
@@ -476,6 +464,16 @@ const App = () => {
     const y = e.clientY - rect.top;
     updateMixing(x, y, rect.width, rect.height);
   };
+
+  const handleKinectPosition = useCallback((xPct, yPct) => {
+    if (!containerRef.current) return;
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    setKinectPosition({ x: xPct, y: yPct });
+    initAudio();
+    updateMixing((xPct / 100) * width, (yPct / 100) * height, width, height);
+  }, [updateMixing, initAudio]);
+
+  useKinectron({ ip: KINECTRON_IP, enabled: kinectEnabled, simulate: import.meta.env.VITE_KINECT_SIMULATE === 'true', onPosition: handleKinectPosition });
 
   const addNode = (data) => {
     const position = mapColorToPosition(data.color);
@@ -516,26 +514,39 @@ const App = () => {
       <div ref={containerRef} className="absolute inset-0 z-0">
         <div className="absolute inset-0 bg-neutral-950" />
         <div className="absolute inset-0 w-full h-full filter blur-[80px] opacity-90 transition-opacity duration-1000">
-           {activeNodes.map((node) => (
-             <div
-                key={node.id}
-                className="absolute rounded-full mix-blend-screen animate-pulse-slow"
-                style={{
-                  backgroundColor: node.color,
-                  left: `${node.x}%`,
-                  top: `${node.y}%`,
-                  width: '45vw', 
-                  height: '45vw',
-                  transform: 'translate(-50%, -50%)',
-                  opacity: 0.6,
-                  transition: 'all 2s ease-in-out'
-                }}
-             />
-           ))}
+           {activeNodes.map((node) => {
+             const isActive = node.id === activeNodeId;
+             return (
+               <div
+                 key={node.id}
+                 className="absolute rounded-full mix-blend-screen animate-pulse-slow"
+                 style={{
+                   backgroundColor: node.color,
+                   left: `${node.x}%`,
+                   top: `${node.y}%`,
+                   width: '45vw',
+                   height: '45vw',
+                   transform: 'translate(-50%, -50%)',
+                   opacity: isActive ? 0.9 : 0.6,
+                   filter: isActive ? 'brightness(1.5)' : 'brightness(1)',
+                   transition: 'opacity 2s ease-in-out, filter 2s ease-in-out',
+                 }}
+               />
+             );
+           })}
         </div>
-        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}} 
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}
         />
+        {kinectEnabled && kinectPosition && (
+          <div
+            className="absolute pointer-events-none z-10"
+            style={{ left: `${kinectPosition.x}%`, top: `${kinectPosition.y}%`, transform: 'translate(-50%, -50%)' }}
+          >
+            <div className="w-4 h-4 rounded-full border-2 border-emerald-400 opacity-80" />
+            <div className="absolute inset-0 w-4 h-4 rounded-full bg-emerald-400 opacity-20 animate-ping" />
+          </div>
+        )}
       </div>
 
       <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none">
@@ -629,7 +640,19 @@ const App = () => {
         )}
 
         <div className="flex items-center space-x-3">
-          <button 
+          <button
+            onClick={() => setKinectEnabled(prev => !prev)}
+            className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center transition-all outline-none ${
+              kinectEnabled
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                : 'bg-black/20 border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white'
+            }`}
+            title={kinectEnabled ? 'Kinect active — click to disable' : 'Enable Kinect input'}
+          >
+            <Radio size={20} />
+          </button>
+
+          <button
             onClick={() => setLibraryOpen(true)}
             className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/10 flex items-center justify-center text-neutral-400 hover:bg-white/10 hover:text-white transition-all outline-none"
             title="Library"
@@ -638,7 +661,7 @@ const App = () => {
           </button>
 
           {!viewedPalette && (
-            <button 
+            <button
               onClick={() => setModalOpen(true)}
               className="w-14 h-14 rounded-full bg-white text-black shadow-lg shadow-white/10 flex items-center justify-center hover:scale-105 transition-transform outline-none"
               title="Add Entry"
@@ -673,8 +696,8 @@ const App = () => {
 
       <style>{`
         @keyframes pulse-slow {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.6; }
-          50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.1); }
         }
         .animate-pulse-slow {
           animation: pulse-slow 8s ease-in-out infinite;
