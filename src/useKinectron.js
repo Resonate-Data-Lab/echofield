@@ -20,6 +20,11 @@ const CAMERA_MAX_Z = 4.5;
 export function useKinectron({ ip, enabled, simulate, onPosition }) {
   const instanceRef = useRef(null);
 
+  // Always keep a current ref to onPosition so intervals never go stale
+  // when the callback changes (e.g. after loading a new palette).
+  const onPositionRef = useRef(onPosition);
+  useEffect(() => { onPositionRef.current = onPosition; }, [onPosition]);
+
   // Simulated body: two sine waves at different frequencies trace a
   // Lissajous-like path that wanders through most of the field.
   useEffect(() => {
@@ -29,11 +34,11 @@ export function useKinectron({ ip, enabled, simulate, onPosition }) {
       const t = Date.now() / 1000;
       const x = 50 + 42 * Math.sin(t * 0.31);
       const y = 50 + 38 * Math.sin(t * 0.19 + 1.3);
-      onPosition(x, y);
+      onPositionRef.current(x, y);
     }, 50); // ~20fps, matching typical Kinect body frame rate
 
     return () => clearInterval(interval);
-  }, [enabled, simulate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [enabled, simulate]);
 
   useEffect(() => {
     if (!enabled || simulate) return;
