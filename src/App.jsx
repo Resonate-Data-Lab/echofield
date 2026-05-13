@@ -1,36 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash } from 'lucide-react';
+import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio } from 'lucide-react';
+import { analyzeDescription } from './colorWords';
+import { useKinectron } from './useKinectron';
+
+// IP address of the computer running the Kinectron server.
+// Use '127.0.0.1' if Kinectron is running on this same machine.
+const KINECTRON_IP = '127.0.0.1';
 
 /**
  * ==========================================
- * UTILITIES & MOCK AI
+ * UTILITIES
  * ==========================================
  */
-
-// Simulates an AI analysis of text to return a hex color and emotional sentiment
-const mockAIAnalyzeDescription = (text) => {
-  let hash = 0;
-  for (let i = 0; i < text.length; i++) {
-    hash = text.charCodeAt(i) + ((hash << 5) - hash);
-  }
-
-  const hue = Math.abs(hash % 360);
-  const saturation = 60 + (Math.abs(hash) % 40); 
-  const lightness = 45 + (Math.abs(hash) % 30);
-
-  const hslToHex = (h, s, l) => {
-    l /= 100;
-    const a = s * Math.min(l, 1 - l) / 100;
-    const f = n => {
-      const k = (n + h / 30) % 12;
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-  };
-
-  return hslToHex(hue, saturation, lightness);
-};
 
 // Maps a Hex color to an X/Y position on the field
 const mapColorToPosition = (hex) => {
@@ -271,9 +252,12 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
 
   useEffect(() => {
     if (text.length > 5) {
-      const color = mockAIAnalyzeDescription(text);
-      setSuggestedColor(color);
-      setFinalColor(color);
+      const timer = setTimeout(() => {
+        const color = analyzeDescription(text);
+        setSuggestedColor(color);
+        setFinalColor(color);
+      }, 650);
+      return () => clearTimeout(timer);
     }
   }, [text]);
 
@@ -366,9 +350,9 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
              </div>
              
              <div className="flex items-center space-x-3 bg-neutral-800 p-2 rounded-lg">
-                <div 
+                <div
                   className="w-10 h-10 rounded-md shadow-inner border border-white/10"
-                  style={{ backgroundColor: finalColor }}
+                  style={{ backgroundColor: finalColor, transition: 'background-color 0.9s ease' }}
                 />
                 
                 <div className="flex-1 flex items-center space-x-2 border-l border-white/10 pl-3">
@@ -459,13 +443,14 @@ const App = () => {
   const [isArchiveModalOpen, setArchiveModalOpen] = useState(false);
   const [isLibraryOpen, setLibraryOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
-  
+  const [kinectEnabled, setKinectEnabled] = useState(import.meta.env.VITE_KINECT_ON === 'true');
+
   const activeNodes = viewedPalette ? viewedPalette.nodes : currentPalette;
   const containerRef = useRef(null);
   const { initAudio, updateMixing, fadeOut, activeNodeId } = useAudioField(activeNodes, !isModalOpen && !isLibraryOpen && !isArchiveModalOpen);
 
   const coverage = useMemo(() => {
-    const maxNodes = 12; 
+    const maxNodes = 12;
     return Math.min(100, Math.round((currentPalette.length / maxNodes) * 100));
   }, [currentPalette]);
 
@@ -476,6 +461,15 @@ const App = () => {
     const y = e.clientY - rect.top;
     updateMixing(x, y, rect.width, rect.height);
   };
+
+  const handleKinectPosition = useCallback((xPct, yPct) => {
+    if (!containerRef.current) return;
+    const { width, height } = containerRef.current.getBoundingClientRect();
+    initAudio();
+    updateMixing((xPct / 100) * width, (yPct / 100) * height, width, height);
+  }, [updateMixing, initAudio]);
+
+  useKinectron({ ip: KINECTRON_IP, enabled: kinectEnabled, simulate: import.meta.env.VITE_KINECT_SIMULATE === 'true', onPosition: handleKinectPosition });
 
   const addNode = (data) => {
     const position = mapColorToPosition(data.color);
@@ -629,7 +623,19 @@ const App = () => {
         )}
 
         <div className="flex items-center space-x-3">
-          <button 
+          <button
+            onClick={() => setKinectEnabled(prev => !prev)}
+            className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center transition-all outline-none ${
+              kinectEnabled
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                : 'bg-black/20 border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white'
+            }`}
+            title={kinectEnabled ? 'Kinect active — click to disable' : 'Enable Kinect input'}
+          >
+            <Radio size={20} />
+          </button>
+
+          <button
             onClick={() => setLibraryOpen(true)}
             className="w-12 h-12 rounded-full bg-black/20 backdrop-blur-sm border border-white/10 flex items-center justify-center text-neutral-400 hover:bg-white/10 hover:text-white transition-all outline-none"
             title="Library"
@@ -638,7 +644,7 @@ const App = () => {
           </button>
 
           {!viewedPalette && (
-            <button 
+            <button
               onClick={() => setModalOpen(true)}
               className="w-14 h-14 rounded-full bg-white text-black shadow-lg shadow-white/10 flex items-center justify-center hover:scale-105 transition-transform outline-none"
               title="Add Entry"
