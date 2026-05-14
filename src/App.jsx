@@ -3,10 +3,14 @@ import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, Arro
 import { analyzeDescription } from './colorWords';
 import { useKinectron } from './useKinectron';
 import samplePalettes from './samplePalettes';
+import SOUND_LIBRARY from './soundLibrary';
 
-// IP address of the computer running the Kinectron server.
-// Use '127.0.0.1' if Kinectron is running on this same machine.
-const KINECTRON_IP = '127.0.0.1';
+// IP address of the computer running the Kinectron 1.0 server.
+// Please refer to Kinectron 1.0 server to read your IP address.
+const KINECTRON_IP = '10.33.6.192';
+
+// Enable two-person mode via VITE_MULTI_PERSON=true in .env.local
+const MULTI_PERSON = import.meta.env.VITE_MULTI_PERSON === 'true';
 
 /**
  * ==========================================
@@ -58,8 +62,10 @@ const mapColorToPosition = (hex) => {
 
 const useAudioField = (nodes, isInteractable) => {
   const audioContextRef = useRef(null);
-  const sourcesRef = useRef({}); 
+  const sourcesRef = useRef({});
   const [activeNodeId, setActiveNodeId] = useState(null);
+  // ── Multi-person ──────────────────────────────────────────────────────────
+  const [activeNodeIds, setActiveNodeIds] = useState([]);
 
   const initAudio = useCallback(() => {
     if (!audioContextRef.current) {
@@ -80,6 +86,7 @@ const useAudioField = (nodes, isInteractable) => {
     });
     sourcesRef.current = {};
     setActiveNodeId(null);
+    setActiveNodeIds([]);
   }, [nodes]);
 
   const loadAudio = useCallback(async (node) => {
@@ -181,6 +188,85 @@ const useAudioField = (nodes, isInteractable) => {
 
   }, [nodes, isInteractable, loadAudio]);
 
+  // ── Multi-person mixing ───────────────────────────────────────────────────
+  // Each person independently activates their closest node within TUNING_RADIUS.
+  // Per-node gain is the sum of all contributions, capped at 1.0.
+  // This means two people on the same node = noticeably louder than one.
+  const updateMixingMulti = useCallback((pixelPositions, width, height) => {
+    if (!audioContextRef.current || !isInteractable) return;
+    const ctx = audioContextRef.current;
+    const TUNING_RADIUS = 20;
+
+    // Convert pixel positions to percentages
+    const positions = pixelPositions.map(p => ({
+      x: (p.x / width) * 100,
+      y: (p.y / height) * 100,
+    }));
+
+    // For each person, find their closest node and gain contribution
+    const personClosest = positions.map(pos => {
+      let closestDist = Infinity;
+      let closestNode = null;
+      nodes.forEach(node => {
+        const dx = pos.x - node.x;
+        const dy = pos.y - node.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < closestDist) { closestDist = dist; closestNode = node; }
+      });
+      return { node: closestNode, dist: closestDist };
+    });
+
+    // Build combined gain map — sum contributions, cap at 1.0
+    const gainMap = {};
+    personClosest.forEach(({ node, dist }) => {
+      if (node && dist < TUNING_RADIUS) {
+        const g = Math.pow(1 - (dist / TUNING_RADIUS), 0.5);
+        gainMap[node.id] = Math.min(1.0, (gainMap[node.id] || 0) + g);
+      }
+    });
+
+    // Apply gains to audio nodes
+    nodes.forEach(node => {
+      if (!sourcesRef.current[node.id]) {
+        if (gainMap[node.id]) loadAudio(node);
+        return;
+      }
+      const audioObj = sourcesRef.current[node.id];
+      if (!audioObj.buffer) return;
+
+      const targetGain = gainMap[node.id] || 0;
+
+      if (targetGain > 0) {
+        if (!audioObj.isPlaying) {
+          const src = ctx.createBufferSource();
+          src.buffer = audioObj.buffer;
+          src.loop = true;
+          const gainNode = ctx.createGain();
+          gainNode.gain.setValueAtTime(0, ctx.currentTime);
+          src.connect(gainNode);
+          gainNode.connect(ctx.destination);
+          src.start(0);
+          audioObj.source = src;
+          audioObj.gain = gainNode;
+          audioObj.isPlaying = true;
+        }
+        audioObj.gain.gain.cancelScheduledValues(ctx.currentTime);
+        audioObj.gain.gain.setTargetAtTime(targetGain, ctx.currentTime, 0.1);
+      } else {
+        if (audioObj.isPlaying && audioObj.gain) {
+          audioObj.gain.gain.cancelScheduledValues(ctx.currentTime);
+          audioObj.gain.gain.setTargetAtTime(0, ctx.currentTime, 0.3);
+        }
+      }
+    });
+
+    // Track which node each person is tuned into (for descriptions)
+    const ids = personClosest
+      .filter(({ node, dist }) => node && dist < TUNING_RADIUS)
+      .map(({ node }) => node.id);
+    setActiveNodeIds(ids);
+  }, [nodes, isInteractable, loadAudio]);
+
   const fadeOut = useCallback(() => {
       if (!audioContextRef.current) return;
       const ctx = audioContextRef.current;
@@ -192,6 +278,7 @@ const useAudioField = (nodes, isInteractable) => {
           }
       });
       setActiveNodeId(null);
+      setActiveNodeIds([]);
   }, []);
 
   useEffect(() => {
@@ -202,7 +289,7 @@ const useAudioField = (nodes, isInteractable) => {
     };
   }, []);
 
-  return { initAudio, updateMixing, fadeOut, activeNodeId };
+  return { initAudio, updateMixing, updateMixingMulti, fadeOut, activeNodeId, activeNodeIds };
 };
 
 /**
@@ -247,10 +334,9 @@ const ArchiveModal = ({ isOpen, onClose, onConfirm }) => {
 
 const UploadModal = ({ isOpen, onClose, onAdd }) => {
   const [text, setText] = useState("");
-  const [file, setFile] = useState(null);
+  const [selectedSound, setSelectedSound] = useState(null);
   const [suggestedColor, setSuggestedColor] = useState(null);
   const [finalColor, setFinalColor] = useState("#808080");
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (text.length > 5) {
@@ -272,29 +358,19 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
     }
   };
 
-  const handleFileChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-    }
-  };
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
-  };
-
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!file || !text) return;
-    const audioUrl = URL.createObjectURL(file);
+    if (!selectedSound || !text) return;
     onAdd({
       text,
       color: finalColor,
-      audioUrl,
-      fileName: file.name
+      audioUrl: selectedSound.audioUrl,
+      fileName: selectedSound.displayName,
     });
     setText("");
-    setFile(null);
+    setSelectedSound(null);
     setSuggestedColor(null);
+    setFinalColor("#808080");
     onClose();
   };
 
@@ -306,31 +382,37 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
         <button onClick={onClose} className="absolute top-4 right-4 text-neutral-500 hover:text-white">
           <X size={20} />
         </button>
-        
+
         <h2 className="text-xl font-light text-white mb-6 tracking-wide">Add Memory to Archive</h2>
-        
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-xs uppercase tracking-widest text-neutral-500">Audio Artifact</label>
-            <div 
-              onClick={handleUploadClick}
-              className="border border-dashed border-neutral-700 rounded-lg p-8 text-center hover:border-neutral-500 transition-colors cursor-pointer relative"
-            >
-              <input 
-                ref={fileInputRef}
-                type="file" 
-                accept="audio/*"
-                onChange={handleFileChange}
-                className="hidden"
-              />
-              {file ? (
-                <div className="flex items-center justify-center space-x-2 text-emerald-400">
-                  <Music size={16} />
-                  <span className="text-sm truncate max-w-[200px]">{file.name}</span>
-                </div>
-              ) : (
-                <span className="text-neutral-400 text-sm">Tap to upload audio file</span>
+            <div className="flex justify-between items-end">
+              <label className="text-xs uppercase tracking-widest text-neutral-500">Sound</label>
+              {selectedSound && (
+                <span className="text-xs text-emerald-400 flex items-center space-x-1">
+                  <Music size={11} />
+                  <span className="truncate max-w-[180px]">{selectedSound.displayName}</span>
+                </span>
               )}
+            </div>
+            <div className="max-h-44 overflow-y-auto space-y-1 custom-scrollbar pr-1">
+              {SOUND_LIBRARY.map(sound => (
+                <div
+                  key={sound.fileName}
+                  onClick={() => setSelectedSound(sound)}
+                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                    selectedSound?.fileName === sound.fileName
+                      ? 'bg-white/15 border border-white/20'
+                      : 'bg-neutral-800 hover:bg-neutral-700'
+                  }`}
+                >
+                  <span className="text-sm text-neutral-200 truncate flex-1">{sound.displayName}</span>
+                  {selectedSound?.fileName === sound.fileName && (
+                    <span className="text-emerald-400 text-xs flex-shrink-0">✓</span>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
 
@@ -352,12 +434,7 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
              </div>
              
              <div className="flex items-center space-x-3 bg-neutral-800 p-2 rounded-lg">
-                <div
-                  className="w-10 h-10 rounded-md shadow-inner border border-white/10"
-                  style={{ backgroundColor: finalColor, transition: 'background-color 0.9s ease' }}
-                />
-                
-                <div className="flex-1 flex items-center space-x-2 border-l border-white/10 pl-3">
+                <div className="flex-1 flex items-center space-x-2 pl-1">
                   <Hash size={14} className="text-neutral-500" />
                   <input 
                     type="text"
@@ -381,7 +458,7 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
 
           <button 
             type="submit"
-            disabled={!file || !text}
+            disabled={!selectedSound || !text}
             className="w-full bg-white text-black py-3 rounded-lg font-medium text-sm hover:bg-neutral-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Integrate into Field
@@ -446,11 +523,11 @@ const App = () => {
   const [isLibraryOpen, setLibraryOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [kinectEnabled, setKinectEnabled] = useState(import.meta.env.VITE_KINECT_ON === 'true');
-  const [kinectPosition, setKinectPosition] = useState(null);
+  const [kinectPositions, setKinectPositions] = useState([]);
 
   const activeNodes = viewedPalette ? viewedPalette.nodes : currentPalette;
   const containerRef = useRef(null);
-  const { initAudio, updateMixing, fadeOut, activeNodeId } = useAudioField(activeNodes, !isModalOpen && !isLibraryOpen && !isArchiveModalOpen);
+  const { initAudio, updateMixing, updateMixingMulti, fadeOut, activeNodeId, activeNodeIds } = useAudioField(activeNodes, !isModalOpen && !isLibraryOpen && !isArchiveModalOpen);
 
   const coverage = useMemo(() => {
     const maxNodes = 12;
@@ -465,15 +542,29 @@ const App = () => {
     updateMixing(x, y, rect.width, rect.height);
   };
 
-  const handleKinectPosition = useCallback((xPct, yPct) => {
+  const handleKinectPositions = useCallback((positions) => {
     if (!containerRef.current) return;
     const { width, height } = containerRef.current.getBoundingClientRect();
-    setKinectPosition({ x: xPct, y: yPct });
+    setKinectPositions(positions);
     initAudio();
-    updateMixing((xPct / 100) * width, (yPct / 100) * height, width, height);
-  }, [updateMixing, initAudio]);
+    if (MULTI_PERSON) {
+      updateMixingMulti(
+        positions.map(p => ({ x: (p.x / 100) * width, y: (p.y / 100) * height })),
+        width, height
+      );
+    } else {
+      const p = positions[0];
+      if (p) updateMixing((p.x / 100) * width, (p.y / 100) * height, width, height);
+    }
+  }, [updateMixing, updateMixingMulti, initAudio]);
 
-  useKinectron({ ip: KINECTRON_IP, enabled: kinectEnabled, simulate: import.meta.env.VITE_KINECT_SIMULATE === 'true', onPosition: handleKinectPosition });
+  useKinectron({
+    ip: KINECTRON_IP,
+    enabled: kinectEnabled,
+    simulate: import.meta.env.VITE_KINECT_SIMULATE === 'true',
+    multiPerson: MULTI_PERSON,
+    onPositions: handleKinectPositions,
+  });
 
   const addNode = (data) => {
     const position = mapColorToPosition(data.color);
@@ -503,6 +594,15 @@ const App = () => {
   const activeNodeData = useMemo(() => {
     return activeNodes.find(n => n.id === activeNodeId);
   }, [activeNodeId, activeNodes]);
+
+  // Multi-person: deduplicated list of active nodes (one per person, same node shown once)
+  const activeNodeDatas = useMemo(() => {
+    if (!MULTI_PERSON) return null;
+    const seen = new Set();
+    return activeNodeIds
+      .map(id => activeNodes.find(n => n.id === id))
+      .filter(n => { if (!n || seen.has(n.id)) return false; seen.add(n.id); return true; });
+  }, [activeNodeIds, activeNodes]);
 
   return (
     <div 
@@ -538,20 +638,21 @@ const App = () => {
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}
         />
-        {kinectEnabled && kinectPosition && (
+        {kinectEnabled && kinectPositions.map((pos, i) => (
           <div
+            key={i}
             className="absolute pointer-events-none z-10"
-            style={{ left: `${kinectPosition.x}%`, top: `${kinectPosition.y}%`, transform: 'translate(-50%, -50%)' }}
+            style={{ left: `${pos.x}%`, top: `${pos.y}%`, transform: 'translate(-50%, -50%)' }}
           >
             <div className="w-4 h-4 rounded-full border-2 border-emerald-400 opacity-80" />
             <div className="absolute inset-0 w-4 h-4 rounded-full bg-emerald-400 opacity-20 animate-ping" />
           </div>
-        )}
+        ))}
       </div>
 
       <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none">
         <div>
-          <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">Chromatic Audio Archive</h1>
+          <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">EchoField Sonic Archive</h1>
           {viewedPalette ? (
              <div className="flex items-center space-x-2 mt-2">
                 <span className="text-white text-xl font-light italic">{viewedPalette.name}</span>
@@ -564,21 +665,10 @@ const App = () => {
         
         {!viewedPalette && (
           <div className="flex flex-col items-end pointer-events-auto">
-            <div className="flex items-center space-x-4">
-               <div className="text-xs text-neutral-500 uppercase tracking-wider">Spectrum Completion</div>
-               <div className="w-24 h-1 bg-neutral-800 rounded-full overflow-hidden">
-                 <div 
-                   className="h-full bg-neutral-400 transition-all duration-1000"
-                   style={{ width: `${coverage}%` }}
-                 />
-               </div>
-               <span className="text-xs font-mono text-neutral-400">{coverage}%</span>
-            </div>
-
             {coverage >= 8 && (
-               <button 
+               <button
                   onClick={() => setArchiveModalOpen(true)}
-                  className="mt-4 flex items-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-xs transition-all backdrop-blur-md"
+                  className="flex items-center space-x-2 bg-white/5 hover:bg-white/10 border border-white/10 px-4 py-2 rounded-full text-xs transition-all backdrop-blur-md"
                >
                  <Archive size={14} />
                  <span>Complete & Archive</span>
@@ -598,23 +688,46 @@ const App = () => {
         )}
       </div>
 
-      <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-all duration-700 z-20 ${activeNodeData ? 'opacity-100 scale-100' : 'opacity-0 scale-95 blur-sm'}`}>
-        {activeNodeData && (
-          <div className="max-w-md mx-auto">
-            <div className="inline-block mb-4 p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
-              <Volume2 size={24} className="text-white/80 animate-pulse" />
+      {/* Single-person description */}
+      {!MULTI_PERSON && (
+        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-all duration-700 z-20 ${activeNodeData ? 'opacity-100 scale-100' : 'opacity-0 scale-95 blur-sm'}`}>
+          {activeNodeData && (
+            <div className="max-w-md mx-auto">
+              <div className="inline-block mb-4 p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
+                <Volume2 size={24} className="text-white/80 animate-pulse" />
+              </div>
+              <p className="text-2xl md:text-3xl font-light text-white leading-relaxed font-serif italic shadow-black drop-shadow-lg">
+                "{activeNodeData.text}"
+              </p>
+              <div className="mt-4 flex items-center justify-center space-x-2 text-white/40 text-xs tracking-widest uppercase">
+                <span>{activeNodeData.fileName}</span>
+                <span>•</span>
+                <span>{activeNodeData.date}</span>
+              </div>
             </div>
-            <p className="text-2xl md:text-3xl font-light text-white leading-relaxed font-serif italic shadow-black drop-shadow-lg">
-              "{activeNodeData.text}"
-            </p>
-            <div className="mt-4 flex items-center justify-center space-x-2 text-white/40 text-xs tracking-widest uppercase">
-              <span>{activeNodeData.fileName}</span>
-              <span>•</span>
-              <span>{activeNodeData.date}</span>
-            </div>
+          )}
+        </div>
+      )}
+
+      {/* Multi-person descriptions — stacked vertically */}
+      {MULTI_PERSON && (
+        <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-all duration-700 z-20 w-full max-w-lg px-8 ${activeNodeDatas?.length > 0 ? 'opacity-100 scale-100' : 'opacity-0 scale-95 blur-sm'}`}>
+          <div className="flex flex-col items-center space-y-8">
+            {activeNodeDatas?.map(node => (
+              <div key={node.id} className="max-w-md mx-auto">
+                <p className="text-2xl md:text-3xl font-light text-white leading-relaxed font-serif italic shadow-black drop-shadow-lg">
+                  "{node.text}"
+                </p>
+                <div className="mt-3 flex items-center justify-center space-x-2 text-white/40 text-xs tracking-widest uppercase">
+                  <span>{node.fileName}</span>
+                  <span>•</span>
+                  <span>{node.date}</span>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {activeNodes.length === 0 && !isModalOpen && !isLibraryOpen && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
