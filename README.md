@@ -195,4 +195,4 @@ src/
 
 ## Credits
 
-Created by Jordan Wirfs-Brock. Built with [React](https://react.dev/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/), and [Kinectron](https://github.com/kinectron/kinectron).
+Created by Alice Chan, Jordan Wirfs-Brock, and William Bares. Built with [React](https://react.dev/), [Vite](https://vitejs.dev/), [Tailwind CSS](https://tailwindcss.com/), and [Kinectron](https://github.com/kinectron/kinectron), using Gemini and Claude Code.
