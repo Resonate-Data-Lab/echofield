@@ -5,8 +5,8 @@
 const samplePalettes = [
   {
     id: 'sample-water',
-    name: 'Creek and Sky',
-    date: 'Sample',
+    name: 'Water in many forms',
+    date: 'May 15, 2026',
     nodes: [
       {
         id: 'sw-1',
@@ -15,20 +15,20 @@ const samplePalettes = [
         audioUrl: '/audio/mill-creek-water.wav',
         fileName: 'mill-creek-water.wav',
         x: 22, y: 35,
-        date: 'Sample',
+        date: 'unknown',
       },
       {
         id: 'sw-2',
-        text: 'Wind through the trees along the creek',
+        text: 'Wind through the trees along Mill Creek',
         color: '#6ee7b7',
         audioUrl: '/audio/mill-creek-wind.m4a',
         fileName: 'mill-creek-wind.m4a',
         x: 40, y: 60,
-        date: 'Sample',
+        date: 'November 5, 2025',
       },
       {
         id: 'sw-3',
-        text: 'A waterfall, somewhere not too far away',
+        text: 'A fountain? A waterfall? It is somewhere on campus...',
         color: '#1d4ed8',
         audioUrl: '/audio/waterfall.WAV',
         fileName: 'waterfall.WAV',
@@ -37,7 +37,7 @@ const samplePalettes = [
       },
       {
         id: 'sw-4',
-        text: 'Water and sky — altitude makes everything feel distant',
+        text: 'Water below and an airplane above',
         color: '#7dd3fc',
         audioUrl: '/audio/airplane-water.WAV',
         fileName: 'airplane-water.WAV',
@@ -46,7 +46,7 @@ const samplePalettes = [
       },
       {
         id: 'sw-5',
-        text: 'Wings and water — a very Whitman sound',
+        text: 'The ducks, doing their thing...',
         color: '#34d399',
         audioUrl: '/audio/quacking-wings-flapping.WAV',
         fileName: 'quacking-wings-flapping.WAV',
@@ -57,12 +57,12 @@ const samplePalettes = [
   },
   {
     id: 'sample-campus',
-    name: 'Campus',
-    date: 'Sample',
+    name: 'Around Campus',
+    date: 'May 15, 2026',
     nodes: [
       {
         id: 'sc-1',
-        text: 'Footsteps across the quad on an ordinary afternoon',
+        text: 'Walking across campus, quickly, on an ordinary afternoon',
         color: '#fbbf24',
         audioUrl: '/audio/walking-across-campus.m4a',
         fileName: 'walking-across-campus.m4a',
@@ -71,7 +71,7 @@ const samplePalettes = [
       },
       {
         id: 'sc-2',
-        text: 'A plane passing overhead — going somewhere else',
+        text: 'A plane passing overhead',
         color: '#94a3b8',
         audioUrl: '/audio/plane-overhead_mixdown.wav',
         fileName: 'plane-overhead_mixdown.wav',
@@ -80,7 +80,7 @@ const samplePalettes = [
       },
       {
         id: 'sc-3',
-        text: 'Jazz spilling out of a conference room',
+        text: 'Jazz performance at lunch during the Whitman Undergraduate Conference, with lots of chatter',
         color: '#c084fc',
         audioUrl: '/audio/whitman-undergraduate-conference-jazz.m4a',
         fileName: 'whitman-undergraduate-conference-jazz.m4a',
@@ -89,7 +89,7 @@ const samplePalettes = [
       },
       {
         id: 'sc-4',
-        text: 'Something dripping in Olin — has it always done that?',
+        text: 'Water dripping from the ceiling in the CS Commons, eep!',
         color: '#38bdf8',
         audioUrl: '/audio/olin-leak.wav',
         fileName: 'olin-leak.wav',
@@ -98,7 +98,7 @@ const samplePalettes = [
       },
       {
         id: 'sc-5',
-        text: 'Groundskeeping — the campus tending to itself',
+        text: 'We always had a lawnmower during our sound class, kind of ironic',
         color: '#a3e635',
         audioUrl: '/audio/leaf-blower.WAV',
         fileName: 'leaf-blower.WAV',
@@ -116,7 +116,7 @@ const samplePalettes = [
       },
       {
         id: 'sc-7',
-        text: 'The ducks of Lakum Dukum — very much at home',
+        text: 'The ducks of Lakum Dukum, very much at home',
         color: '#fb923c',
         audioUrl: '/audio/lakum-duckum.m4a',
         fileName: 'lakum-duckum.m4a',
@@ -127,12 +127,12 @@ const samplePalettes = [
   },
   {
     id: 'sample-domestic',
-    name: 'Domestic',
-    date: 'Sample',
+    name: 'Everyday Life',
+    date: 'May 15, 2026',
     nodes: [
       {
         id: 'sd-1',
-        text: 'The kettle building toward a boil',
+        text: 'An electric kettle building toward a boil',
         color: '#ef4444',
         audioUrl: '/audio/electric-kettle-boiling.m4a',
         fileName: 'electric-kettle-boiling.m4a',
@@ -141,7 +141,7 @@ const samplePalettes = [
       },
       {
         id: 'sd-2',
-        text: 'A hair dryer in a small bathroom',
+        text: 'A hair dryer',
         color: '#f59e0b',
         audioUrl: '/audio/hair-dryer.m4a',
         fileName: 'hair-dryer.m4a',
@@ -150,7 +150,7 @@ const samplePalettes = [
       },
       {
         id: 'sd-3',
-        text: 'Morning ritual — water, brush, repeat',
+        text: 'Brushing teeth and faucet running in the morning',
         color: '#06b6d4',
         audioUrl: '/audio/faucet-brushing-teeth.m4a',
         fileName: 'faucet-brushing-teeth.m4a',
@@ -168,7 +168,7 @@ const samplePalettes = [
       },
       {
         id: 'sd-5',
-        text: 'A small involuntary sound — the body interrupting itself',
+        text: 'Hiccup! Hiccup!',
         color: '#ec4899',
         audioUrl: '/audio/hiccup.wav',
         fileName: 'hiccup.wav',
@@ -177,7 +177,7 @@ const samplePalettes = [
       },
       {
         id: 'sd-6',
-        text: 'A duck, somewhere it probably should not be',
+        text: 'A duck, where it feels at home',
         color: '#a78bfa',
         audioUrl: '/audio/lakum-dukum-2.m4a',
         fileName: 'lakum-dukum-2.m4a',
@@ -188,12 +188,12 @@ const samplePalettes = [
   },
   {
     id: 'sample-strange',
-    name: 'Strange Signals',
-    date: 'Sample',
+    name: 'Disparate Signals',
+    date: 'May 15, 2026',
     nodes: [
       {
         id: 'ss-1',
-        text: 'A voice insisting on something',
+        text: 'Not time to cross the street yet...',
         color: '#f43f5e',
         audioUrl: '/audio/wait-wait-wait.m4a',
         fileName: 'wait-wait-wait.m4a',
@@ -202,7 +202,7 @@ const samplePalettes = [
       },
       {
         id: 'ss-2',
-        text: 'A warning that is also a color',
+        text: 'Now you can go, because yellow lights are flashing',
         color: '#eab308',
         audioUrl: '/audio/yellow-lights-are-flashing.m4a',
         fileName: 'yellow-lights-are-flashing.m4a',
@@ -211,7 +211,7 @@ const samplePalettes = [
       },
       {
         id: 'ss-3',
-        text: 'Something between a crowd and a herd',
+        text: 'Walla Walla in Spring: Where two dozen hot air balloons might pass right over your house at sunset',
         color: '#8b5cf6',
         audioUrl: '/audio/balloon-stampede.m4a',
         fileName: 'balloon-stampede.m4a',
@@ -220,7 +220,7 @@ const samplePalettes = [
       },
       {
         id: 'ss-4',
-        text: 'Animals at rest — or possibly not resting at all',
+        text: 'The ambience of Graze',
         color: '#4ade80',
         audioUrl: '/audio/at-graze.m4a',
         fileName: 'at-graze.m4a',
@@ -229,7 +229,7 @@ const samplePalettes = [
       },
       {
         id: 'ss-5',
-        text: 'Wings and water, out of context',
+        text: 'Quacking and flapping and splashing',
         color: '#f0abfc',
         audioUrl: '/audio/quacking-wings-flapping.WAV',
         fileName: 'quacking-wings-flapping.WAV',
@@ -240,12 +240,12 @@ const samplePalettes = [
   },
   {
     id: 'sample-trio',
-    name: 'Trio',
-    date: 'Sample',
+    name: 'Three unrelated sounds',
+    date: 'May 15, 2026',
     nodes: [
       {
         id: 'st-1',
-        text: 'A bell in a tree at Wallula Gap',
+        text: 'A bell in a lonely tree at Wallula Gap',
         color: '#dc2626',
         audioUrl: '/audio/wallula-gap-tree-bell.m4a',
         fileName: 'wallula-gap-tree-bell.m4a',
@@ -254,7 +254,7 @@ const samplePalettes = [
       },
       {
         id: 'st-2',
-        text: 'Twelve seconds of breathing',
+        text: 'It takes 12 seconds to breathe',
         color: '#0d9488',
         audioUrl: '/audio/it-takes-12-secs-to-breathe.m4a',
         fileName: 'it-takes-12-secs-to-breathe.m4a',
@@ -263,7 +263,7 @@ const samplePalettes = [
       },
       {
         id: 'st-3',
-        text: 'A swing that needs oiling',
+        text: 'A swing that has a lot to say',
         color: '#d97706',
         audioUrl: '/audio/squeaky-swing.m4a',
         fileName: 'squeaky-swing.m4a',
