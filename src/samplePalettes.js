@@ -33,7 +33,7 @@ const samplePalettes = [
         audioUrl: '/audio/waterfall.WAV',
         fileName: 'waterfall.WAV',
         x: 12, y: 75,
-        date: 'Sample',
+        date: 'October 7, 2025',
       },
       {
         id: 'sw-4',
@@ -42,7 +42,7 @@ const samplePalettes = [
         audioUrl: '/audio/airplane-water.WAV',
         fileName: 'airplane-water.WAV',
         x: 62, y: 22,
-        date: 'Sample',
+        date: 'October 7, 2025',
       },
       {
         id: 'sw-5',
@@ -51,7 +51,7 @@ const samplePalettes = [
         audioUrl: '/audio/quacking-wings-flapping.WAV',
         fileName: 'quacking-wings-flapping.WAV',
         x: 33, y: 48,
-        date: 'Sample',
+        date: 'October 7, 2025',
       },
     ],
   },
@@ -67,7 +67,7 @@ const samplePalettes = [
         audioUrl: '/audio/walking-across-campus.m4a',
         fileName: 'walking-across-campus.m4a',
         x: 55, y: 62,
-        date: 'Sample',
+        date: 'November 7, 2025',
       },
       {
         id: 'sc-2',
@@ -76,7 +76,7 @@ const samplePalettes = [
         audioUrl: '/audio/plane-overhead_mixdown.wav',
         fileName: 'plane-overhead_mixdown.wav',
         x: 78, y: 18,
-        date: 'Sample',
+        date: 'Unknown',
       },
       {
         id: 'sc-3',
@@ -85,7 +85,7 @@ const samplePalettes = [
         audioUrl: '/audio/whitman-undergraduate-conference-jazz.m4a',
         fileName: 'whitman-undergraduate-conference-jazz.m4a',
         x: 68, y: 50,
-        date: 'Sample',
+        date: 'April 14, 2026',
       },
       {
         id: 'sc-4',
@@ -94,7 +94,7 @@ const samplePalettes = [
         audioUrl: '/audio/olin-leak.wav',
         fileName: 'olin-leak.wav',
         x: 42, y: 35,
-        date: 'Sample',
+        date: 'April 22, 2026',
       },
       {
         id: 'sc-5',
@@ -103,7 +103,7 @@ const samplePalettes = [
         audioUrl: '/audio/leaf-blower.WAV',
         fileName: 'leaf-blower.WAV',
         x: 20, y: 52,
-        date: 'Sample',
+        date: 'October 7, 2025',
       },
       {
         id: 'sc-6',
@@ -112,7 +112,7 @@ const samplePalettes = [
         audioUrl: '/audio/blackboard-writing.wav',
         fileName: 'blackboard-writing.wav',
         x: 85, y: 32,
-        date: 'Sample',
+        date: 'Unknown',
       },
       {
         id: 'sc-7',
@@ -121,7 +121,7 @@ const samplePalettes = [
         audioUrl: '/audio/lakum-duckum.m4a',
         fileName: 'lakum-duckum.m4a',
         x: 58, y: 80,
-        date: 'Sample',
+        date: 'November 5, 2025',
       },
     ],
   },
@@ -137,7 +137,7 @@ const samplePalettes = [
         audioUrl: '/audio/electric-kettle-boiling.m4a',
         fileName: 'electric-kettle-boiling.m4a',
         x: 25, y: 28,
-        date: 'Sample',
+        date: 'November 7, 2025',
       },
       {
         id: 'sd-2',
@@ -146,7 +146,7 @@ const samplePalettes = [
         audioUrl: '/audio/hair-dryer.m4a',
         fileName: 'hair-dryer.m4a',
         x: 62, y: 38,
-        date: 'Sample',
+        date: 'November 5, 2025',
       },
       {
         id: 'sd-3',
@@ -155,7 +155,7 @@ const samplePalettes = [
         audioUrl: '/audio/faucet-brushing-teeth.m4a',
         fileName: 'faucet-brushing-teeth.m4a',
         x: 42, y: 68,
-        date: 'Sample',
+        date: 'November 5, 2025',
       },
       {
         id: 'sd-4',
@@ -164,7 +164,7 @@ const samplePalettes = [
         audioUrl: '/audio/pencil-sharpener.m4a',
         fileName: 'pencil-sharpener.m4a',
         x: 80, y: 75,
-        date: 'Sample',
+        date: 'November 5, 2025',
       },
       {
         id: 'sd-5',
@@ -173,7 +173,7 @@ const samplePalettes = [
         audioUrl: '/audio/hiccup.wav',
         fileName: 'hiccup.wav',
         x: 55, y: 20,
-        date: 'Sample',
+        date: 'Unknown',
       },
       {
         id: 'sd-6',
