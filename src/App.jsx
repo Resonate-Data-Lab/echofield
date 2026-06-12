@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio } from 'lucide-react';
 import { analyzeDescription } from './colorWords';
-import { useKinectron } from './useKinectron';
+import { useKinectBridge } from './useKinectBridge';
 import samplePalettes from './samplePalettes';
 import SOUND_LIBRARY from './soundLibrary';
 
-// IP address of the computer running the Kinectron 1.0 server.
-// Please refer to Kinectron 1.0 server to read your IP address.
-const KINECTRON_IP = '10.33.6.192';
+// WebSocket URL for the custom Azure Kinect bridge (one-machine setup).
+const KINECT_BRIDGE_URL = 'ws://localhost:8765';
 
 // Enable two-person mode via VITE_MULTI_PERSON=true in .env.local
 const MULTI_PERSON = import.meta.env.VITE_MULTI_PERSON === 'true';
@@ -558,8 +557,8 @@ const App = () => {
     }
   }, [updateMixing, updateMixingMulti, initAudio]);
 
-  useKinectron({
-    ip: KINECTRON_IP,
+  useKinectBridge({
+    url: KINECT_BRIDGE_URL,
     enabled: kinectEnabled,
     simulate: import.meta.env.VITE_KINECT_SIMULATE === 'true',
     multiPerson: MULTI_PERSON,
@@ -760,7 +759,7 @@ const App = () => {
                 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
                 : 'bg-black/20 border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white'
             }`}
-            title={kinectEnabled ? 'Kinect active — click to disable' : 'Enable Kinect input'}
+            title={kinectEnabled ? 'Kinect bridge active — click to disable' : 'Enable Kinect bridge'}
           >
             <Radio size={20} />
           </button>
