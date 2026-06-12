@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>EchoFieldBridge</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Official Microsoft Azure Kinect packages -->
+    <PackageReference Include="Microsoft.Azure.Kinect.Sensor"       Version="1.4.1" />
+    <PackageReference Include="Microsoft.Azure.Kinect.BodyTracking" Version="1.1.2" />
+    <!-- Lightweight WebSocket server — no ASP.NET needed -->
+    <PackageReference Include="Fleck" Version="1.2.0" />
+  </ItemGroup>
+</Project>

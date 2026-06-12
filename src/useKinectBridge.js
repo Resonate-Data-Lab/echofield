@@ -2,11 +2,12 @@
 import { useEffect, useRef } from 'react';
 
 // Connects to a custom Azure Kinect WebSocket bridge.
-// All calibration/normalization lives in the bridge (bridge.py), not here.
+// All calibration/normalization lives in the bridge, not here.
+// x, y values are pre-normalized to 0–100 by the bridge.
 //
-// Expected message format (JSON, ~20fps):
-//   { "bodies": [ { "x": 45.2, "y": 67.3 }, ... ] }
-//   x, y are already normalized to 0–100 by the bridge.
+// Accepts both message formats:
+//   { "type": "positions", "positions": [{ "x": 45.2, "y": 67.3 }] }  ← C# bridge
+//   { "bodies":            [{ "x": 45.2, "y": 67.3 }] }               ← legacy
 
 const MAX_BODIES = 2;
 const RECONNECT_DELAY_MS = 2000;
@@ -65,13 +66,18 @@ export function useKinectBridge({ url, enabled, simulate, multiPerson, onPositio
           return;
         }
 
-        if (!frame.bodies || frame.bodies.length === 0) return;
+        // Support both { type:"positions", positions:[…] } and { bodies:[…] }
+        const list = (frame.type === 'positions' ? frame.positions : null)
+                  ?? frame.bodies
+                  ?? [];
+
+        if (list.length === 0) return;
 
         const maxBodies = multiPerson ? MAX_BODIES : 1;
         const positions = [];
 
-        for (let i = 0; i < Math.min(frame.bodies.length, maxBodies); i++) {
-          const { x, y } = frame.bodies[i];
+        for (let i = 0; i < Math.min(list.length, maxBodies); i++) {
+          const { x, y } = list[i];
           if (x >= 0 && x <= 100 && y >= 0 && y <= 100)
             positions.push({ x, y });
         }
