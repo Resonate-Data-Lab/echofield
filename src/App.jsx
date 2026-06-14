@@ -65,15 +65,21 @@ const mapColorToPosition = (hex) => {
   };
 };
 
-// Builds a URL-safe slug for a palette's souvenir file and view link,
-// e.g. "Midnight Rain" (id 1750000123456) -> "midnight-rain-123456".
+// Builds a URL-safe slug for a palette's souvenir file and view link from
+// its id, e.g. id 4821 -> "4821".
 const slugify = (str) =>
   str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'palette';
 
-const souvenirSlug = (palette) => {
-  const idDigits = String(palette.id).replace(/\D/g, '').slice(-6);
-  const suffix = idDigits || slugify(String(palette.id));
-  return `${slugify(palette.name)}-${suffix}`;
+const souvenirSlug = (palette) => slugify(String(palette.id));
+
+// Generates a short, 4-digit numeric id for an archived palette (used in its
+// souvenir slug/link), avoiding collisions with existing palette ids.
+const generateShortId = (existingIds) => {
+  let id;
+  do {
+    id = Math.floor(1000 + Math.random() * 9000);
+  } while (existingIds.includes(id) || existingIds.includes(String(id)));
+  return id;
 };
 
 // Downloads a palette as a souvenir JSON file (for public/palettes/<slug>.json)
@@ -943,7 +949,7 @@ const StudioApp = () => {
   const confirmArchive = (name) => {
     if (currentPalette.length === 0) return;
     const newPalette = {
-      id: Date.now(),
+      id: generateShortId(palettes.map(p => p.id)),
       name: name,
       date: new Date().toLocaleDateString(),
       nodes: [...currentPalette]
