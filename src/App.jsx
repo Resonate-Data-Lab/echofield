@@ -630,6 +630,54 @@ const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
   );
 };
 
+const CREDITS_TEXT = "Created by Alice Chan, Jordan Wirfs-Brock, and William Bares. Built with React, Vite, Tailwind CSS, Kinectron, and MediaPipe, using Gemini and Claude Code.";
+
+// Small "i" button + overlay explaining the UI and giving credits. Shared by
+// the studio (variant="studio") and souvenir (variant="souvenir") views.
+const AboutOverlay = ({ isOpen, onClose, variant = 'studio' }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="bg-neutral-900 border border-white/10 w-full max-w-sm p-6 rounded-2xl shadow-2xl relative text-sm text-neutral-300"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 text-neutral-500 hover:text-white">
+          <X size={18} />
+        </button>
+        <h2 className="text-lg font-light text-white mb-4 tracking-wide">About EchoField</h2>
+
+        {variant === 'studio' ? (
+          <div className="space-y-3 mb-6">
+            <p className="leading-relaxed opacity-80">
+              Move through the field with a cursor or your body
+              (via Kinect or webcam) to tune into layered sound memories.
+            </p>
+            <ul className="space-y-2 leading-relaxed opacity-80">
+              <li className="flex items-center space-x-2"><Plus size={14} className="flex-shrink-0" /><span>Create a new sonic palette</span></li>
+              <li className="flex items-center space-x-2"><BookOpen size={14} className="flex-shrink-0" /><span>Revisit saved compositions in the palette Library</span></li>
+              <li className="flex items-center space-x-2"><Radio size={14} className="flex-shrink-0" /><span>Toggle Kinect body tracking</span></li>
+              <li className="flex items-center space-x-2"><Camera size={14} className="flex-shrink-0" /><span>Toggle webcam body tracking</span></li>
+              <li className="flex items-center space-x-2"><Crosshair size={14} className="flex-shrink-0" /><span>Show/hide webcam calibration preview</span></li>
+            </ul>
+          </div>
+        ) : (
+          <p className="leading-relaxed opacity-80 mb-6">
+            This is a souvenir — a personal link back to a sound field someone
+            created in EchoField. Move your cursor 
+            across it to explore.
+          </p>
+        )}
+
+        <p className="text-xs text-neutral-500 leading-relaxed border-t border-white/5 pt-4">
+          {CREDITS_TEXT}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // Standalone, view-only rendering of a single saved palette — used for
 // souvenir links (?palette=<slug>). No creation, archiving, or library UI;
 // just the explorable field.
@@ -637,6 +685,7 @@ const PaletteView = ({ slug }) => {
   const [palette, setPalette] = useState(null);
   const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'not-found'
   const [showIntro, setShowIntro] = useState(true);
+  const [isAboutOpen, setAboutOpen] = useState(false);
   const containerRef = useRef(null);
 
   useEffect(() => {
@@ -735,7 +784,16 @@ const PaletteView = ({ slug }) => {
       </div>
 
       <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
-        <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">EchoField Sonic Archive</h1>
+        <div className="flex items-center space-x-2">
+          <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">EchoField Sonic Archive</h1>
+          <button
+            onClick={() => setAboutOpen(true)}
+            className="pointer-events-auto text-neutral-600 hover:text-neutral-300 transition-colors"
+            title="About"
+          >
+            <Info size={14} />
+          </button>
+        </div>
         <div className="flex items-center space-x-2 mt-2">
           <span className="text-white text-xl font-light italic">{palette.name}</span>
           <span className="text-neutral-600 text-xs border border-neutral-700 px-2 py-0.5 rounded-full">Souvenir</span>
@@ -776,10 +834,12 @@ const PaletteView = ({ slug }) => {
             <button onClick={() => setShowIntro(false)}><X size={14}/></button>
           </div>
           <p className="leading-relaxed opacity-80">
-            Move your cursor — or drag your finger — across the field to tune into memories like a radio.
+            Move your cursor — or drag your finger — across the field to tune into sonic memories like a radio.
           </p>
         </div>
       )}
+
+      <AboutOverlay isOpen={isAboutOpen} onClose={() => setAboutOpen(false)} variant="souvenir" />
 
       <style>{`
         @keyframes pulse-slow {
@@ -802,6 +862,7 @@ const StudioApp = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [isArchiveModalOpen, setArchiveModalOpen] = useState(false);
   const [isLibraryOpen, setLibraryOpen] = useState(false);
+  const [isAboutOpen, setAboutOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
   const [trackingSource, setTrackingSource] = useState(INITIAL_TRACKING_SOURCE);
   const [trackingPositions, setTrackingPositions] = useState([]);
@@ -953,7 +1014,16 @@ const StudioApp = () => {
 
       <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-10 pointer-events-none">
         <div>
-          <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">EchoField Sonic Archive</h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">EchoField Sonic Archive</h1>
+            <button
+              onClick={() => setAboutOpen(true)}
+              className="pointer-events-auto text-neutral-600 hover:text-neutral-300 transition-colors"
+              title="About"
+            >
+              <Info size={14} />
+            </button>
+          </div>
           {viewedPalette ? (
              <div className="flex items-center space-x-2 mt-2">
                 <span className="text-white text-xl font-light italic">{viewedPalette.name}</span>
@@ -1048,7 +1118,7 @@ const StudioApp = () => {
                <button onClick={() => setShowIntro(false)}><X size={14}/></button>
              </div>
              <p className="leading-relaxed opacity-80">
-               Move your cursor across the field to tune into memories like a radio. 
+               Move your cursor, or your feet, across the field to tune into sonic memories like a radio.
              </p>
           </div>
         )}
@@ -1143,6 +1213,8 @@ const StudioApp = () => {
           setLibraryOpen(false);
         }}
       />
+
+      <AboutOverlay isOpen={isAboutOpen} onClose={() => setAboutOpen(false)} variant="studio" />
 
       <style>{`
         @keyframes pulse-slow {
