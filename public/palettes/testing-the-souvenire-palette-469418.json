@@ -1,0 +1,27 @@
+{
+  "id": 1781474469418,
+  "name": "Testing the souvenire palette",
+  "date": "6/14/2026",
+  "nodes": [
+    {
+      "id": "1781474441969",
+      "text": "The sound of someone hiccuping",
+      "color": "#e4ed3b",
+      "audioUrl": "/audio/hiccup.wav",
+      "fileName": "Hiccup",
+      "x": 17.509363295880146,
+      "y": 41.96078431372548,
+      "date": "6/14/2026"
+    },
+    {
+      "id": "1781474457935",
+      "text": "A plane flying overhead",
+      "color": "#4d99e5",
+      "audioUrl": "/audio/plane-overhead_mixdown.wav",
+      "fileName": "Plane Overhead",
+      "x": 58.333333333333336,
+      "y": 40,
+      "date": "6/14/2026"
+    }
+  ]
+}
