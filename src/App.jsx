@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio } from 'lucide-react';
+import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio, Camera, Crosshair, Download } from 'lucide-react';
 import { analyzeDescription } from './colorWords';
 import { useKinectron } from './useKinectron';
+import { useMediaPipePose, camMinX, camMaxX, camNearY, camFarY } from './useMediaPipePose';
 import samplePalettes from './samplePalettes';
 import SOUND_LIBRARY from './soundLibrary';
+import { assetPath } from './assetPath';
 
 // IP address of the computer running the Kinectron 1.0 server.
 // Please refer to Kinectron 1.0 server to read your IP address.
@@ -11,6 +13,15 @@ const KINECTRON_IP = '10.33.6.192';
 
 // Enable two-person mode via VITE_MULTI_PERSON=true in .env.local
 const MULTI_PERSON = import.meta.env.VITE_MULTI_PERSON === 'true';
+
+// Which body-tracking source is active on load: 'kinect', 'webcam', or 'off'.
+// Set via VITE_TRACKING_SOURCE in .env.local. Falls back to the older
+// VITE_KINECT_ON flag for backwards compatibility.
+const INITIAL_TRACKING_SOURCE = (() => {
+  const configured = import.meta.env.VITE_TRACKING_SOURCE;
+  if (configured === 'kinect' || configured === 'webcam' || configured === 'off') return configured;
+  return import.meta.env.VITE_KINECT_ON === 'true' ? 'kinect' : 'off';
+})();
 
 /**
  * ==========================================
@@ -49,9 +60,45 @@ const mapColorToPosition = (hex) => {
   }
 
   return {
-    x: h * 100, 
-    y: (1 - l) * 100 
+    x: h * 100,
+    y: (1 - l) * 100
   };
+};
+
+// Builds a URL-safe slug for a palette's souvenir file and view link,
+// e.g. "Midnight Rain" (id 1750000123456) -> "midnight-rain-123456".
+const slugify = (str) =>
+  str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'palette';
+
+const souvenirSlug = (palette) => {
+  const idDigits = String(palette.id).replace(/\D/g, '').slice(-6);
+  const suffix = idDigits || slugify(String(palette.id));
+  return `${slugify(palette.name)}-${suffix}`;
+};
+
+// Downloads a palette as a souvenir JSON file (for public/palettes/<slug>.json)
+// and copies its view-only link (?palette=<slug>) to the clipboard.
+const downloadSouvenir = (palette) => {
+  const slug = souvenirSlug(palette);
+  const payload = {
+    id: palette.id,
+    name: palette.name,
+    date: palette.date,
+    nodes: palette.nodes,
+  };
+
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${slug}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  const viewUrl = `${window.location.origin}${window.location.pathname}?palette=${slug}`;
+  navigator.clipboard?.writeText(viewUrl).catch(() => {});
+
+  return { slug, viewUrl };
 };
 
 /**
@@ -104,7 +151,7 @@ const useAudioField = (nodes, isInteractable) => {
     }
 
     try {
-      const response = await fetch(node.audioUrl);
+      const response = await fetch(assetPath(node.audioUrl));
       const arrayBuffer = await response.arrayBuffer();
       const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
       
@@ -469,9 +516,11 @@ const UploadModal = ({ isOpen, onClose, onAdd }) => {
   );
 };
 
-const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette }) => {
+const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette, onDownloadSouvenir }) => {
+  const [copiedId, setCopiedId] = useState(null);
+
   if (!isOpen) return null;
-  
+
   return (
     <div className="absolute top-0 right-0 w-80 h-full bg-neutral-900/95 backdrop-blur-xl border-l border-white/10 z-50 p-6 shadow-2xl transition-all">
       <div className="flex items-center justify-between mb-8">
@@ -487,14 +536,28 @@ const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette }) => {
       ) : (
         <div className="space-y-4 overflow-y-auto h-[80vh] pr-2 custom-scrollbar">
           {palettes.map(p => (
-            <div 
-              key={p.id} 
+            <div
+              key={p.id}
               onClick={() => onLoadPalette(p)}
               className="group cursor-pointer bg-neutral-800/30 hover:bg-neutral-800 border border-white/5 hover:border-white/20 p-4 rounded-lg transition-all"
             >
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-white font-medium text-sm group-hover:text-emerald-400 transition-colors">{p.name}</h3>
-                <span className="text-[10px] text-neutral-500 font-mono">{p.date}</span>
+                <div className="flex items-center space-x-2 flex-shrink-0">
+                  <span className="text-[10px] text-neutral-500 font-mono">{p.date}</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownloadSouvenir(p);
+                      setCopiedId(p.id);
+                      setTimeout(() => setCopiedId(null), 2500);
+                    }}
+                    title="Download souvenir file and copy its view link"
+                    className="text-neutral-500 hover:text-emerald-400 transition-colors"
+                  >
+                    <Download size={13} />
+                  </button>
+                </div>
               </div>
               <div className="flex items-center space-x-2 text-xs text-neutral-400">
                 <Disc size={12} />
@@ -505,6 +568,9 @@ const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette }) => {
                   <div key={i} style={{ backgroundColor: n.color, flex: 1 }} />
                 ))}
               </div>
+              {copiedId === p.id && (
+                <p className="mt-2 text-[10px] text-emerald-400">Souvenir downloaded — view link copied to clipboard.</p>
+              )}
             </div>
           ))}
         </div>
@@ -513,8 +579,223 @@ const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette }) => {
   );
 };
 
-const App = () => {
-  const [palettes, setPalettes] = useState(samplePalettes); 
+// Live webcam feed with an overlay showing the calibrated floor area
+// (dashed box) and the currently tracked body position(s) (dots).
+// Used to set up and verify the camMinX/camMaxX/camNearY/camFarY bounds
+// in useMediaPipePose.js for a given room and camera placement.
+const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.srcObject = stream || null;
+  }, [stream]);
+
+  return (
+    <div className="absolute bottom-24 right-8 z-40 w-64 bg-black/70 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden shadow-2xl">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+        <span className="text-xs uppercase tracking-widest text-neutral-400">Webcam Calibration</span>
+        <button onClick={onClose}><X size={14} className="text-neutral-500 hover:text-white" /></button>
+      </div>
+      <div className="relative aspect-video bg-black">
+        {error ? (
+          <div className="absolute inset-0 flex items-center justify-center text-center text-xs text-red-400 p-3">{error}</div>
+        ) : (
+          <>
+            <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
+            {/* Calibrated floor area */}
+            <div
+              className="absolute border-2 border-dashed border-emerald-400/70 pointer-events-none"
+              style={{
+                left: `${camMinX * 100}%`,
+                top: `${camFarY * 100}%`,
+                width: `${(camMaxX - camMinX) * 100}%`,
+                height: `${(camNearY - camFarY) * 100}%`,
+              }}
+            />
+            {/* Detected body position(s) */}
+            {rawPositions.map((pos, i) => (
+              <div
+                key={i}
+                className="absolute w-3 h-3 -m-1.5 rounded-full bg-emerald-400 border border-white/80 pointer-events-none"
+                style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
+              />
+            ))}
+          </>
+        )}
+      </div>
+      <p className="px-3 py-2 text-[10px] text-neutral-500 leading-relaxed">
+        Dashed box is the calibrated floor area. Stand at its edges and adjust camMinX/camMaxX/camNearY/camFarY in useMediaPipePose.js to match your projection.
+      </p>
+    </div>
+  );
+};
+
+// Standalone, view-only rendering of a single saved palette — used for
+// souvenir links (?palette=<slug>). No creation, archiving, or library UI;
+// just the explorable field.
+const PaletteView = ({ slug }) => {
+  const [palette, setPalette] = useState(null);
+  const [status, setStatus] = useState('loading'); // 'loading' | 'ready' | 'not-found'
+  const [showIntro, setShowIntro] = useState(true);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(assetPath(`/palettes/${slug}.json`))
+      .then(res => {
+        if (!res.ok) throw new Error('not found');
+        return res.json();
+      })
+      .then(data => {
+        if (!cancelled) {
+          setPalette(data);
+          setStatus('ready');
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('not-found');
+      });
+    return () => { cancelled = true; };
+  }, [slug]);
+
+  const nodes = useMemo(() => palette?.nodes ?? [], [palette]);
+  const { initAudio, updateMixing, fadeOut, activeNodeId } = useAudioField(nodes, status === 'ready');
+  const activeNode = useMemo(() => nodes.find(n => n.id === activeNodeId), [nodes, activeNodeId]);
+
+  const handleMove = (clientX, clientY) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    updateMixing(clientX - rect.left, clientY - rect.top, rect.width, rect.height);
+  };
+
+  if (status === 'loading') {
+    return (
+      <div className="w-full h-screen bg-neutral-950 flex items-center justify-center text-neutral-500 text-xs tracking-widest uppercase">
+        Loading...
+      </div>
+    );
+  }
+
+  if (status === 'not-found') {
+    return (
+      <div className="w-full h-screen bg-neutral-950 flex items-center justify-center text-center px-6">
+        <div className="text-neutral-500 max-w-sm">
+          <Disc size={40} className="mx-auto mb-4 opacity-20" />
+          <p className="text-white font-light text-lg mb-2">This souvenir isn't ready yet.</p>
+          <p className="text-sm opacity-70">The link may still be processing, or may no longer exist. Check back again soon.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="w-full h-screen bg-neutral-900 text-neutral-200 overflow-hidden font-sans select-none relative"
+      style={{ touchAction: 'none' }}
+      onMouseMove={(e) => handleMove(e.clientX, e.clientY)}
+      onMouseLeave={fadeOut}
+      onTouchStart={(e) => {
+        initAudio();
+        const touch = e.touches[0];
+        if (touch) handleMove(touch.clientX, touch.clientY);
+      }}
+      onTouchMove={(e) => {
+        const touch = e.touches[0];
+        if (touch) handleMove(touch.clientX, touch.clientY);
+      }}
+      onClick={initAudio}
+    >
+      <div ref={containerRef} className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-neutral-950" />
+        <div className="absolute inset-0 w-full h-full filter blur-[80px] opacity-90 transition-opacity duration-1000">
+          {nodes.map((node) => {
+            const isActive = node.id === activeNodeId;
+            return (
+              <div
+                key={node.id}
+                className="absolute rounded-full mix-blend-screen animate-pulse-slow"
+                style={{
+                  backgroundColor: node.color,
+                  left: `${node.x}%`,
+                  top: `${node.y}%`,
+                  width: '45vw',
+                  height: '45vw',
+                  transform: 'translate(-50%, -50%)',
+                  opacity: isActive ? 0.9 : 0.6,
+                  filter: isActive ? 'brightness(1.5)' : 'brightness(1)',
+                  transition: 'opacity 2s ease-in-out, filter 2s ease-in-out',
+                }}
+              />
+            );
+          })}
+        </div>
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+             style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}
+        />
+      </div>
+
+      <div className="absolute top-0 left-0 w-full p-6 z-10 pointer-events-none">
+        <h1 className="text-sm font-medium tracking-[0.2em] text-neutral-400 uppercase">EchoField Sonic Archive</h1>
+        <div className="flex items-center space-x-2 mt-2">
+          <span className="text-white text-xl font-light italic">{palette.name}</span>
+          <span className="text-neutral-600 text-xs border border-neutral-700 px-2 py-0.5 rounded-full">Souvenir</span>
+        </div>
+      </div>
+
+      <div className={`absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none transition-all duration-700 z-20 ${activeNode ? 'opacity-100 scale-100' : 'opacity-0 scale-95 blur-sm'}`}>
+        {activeNode && (
+          <div className="max-w-md mx-auto">
+            <div className="inline-block mb-4 p-3 rounded-full bg-black/20 backdrop-blur-md border border-white/10">
+              <Volume2 size={24} className="text-white/80 animate-pulse" />
+            </div>
+            <p className="text-2xl md:text-3xl font-light text-white leading-relaxed font-serif italic shadow-black drop-shadow-lg">
+              "{activeNode.text}"
+            </p>
+            <div className="mt-4 flex items-center justify-center space-x-2 text-white/40 text-xs tracking-widest uppercase">
+              <span>{activeNode.fileName}</span>
+              <span>•</span>
+              <span>{activeNode.date}</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+          <div className="text-center text-neutral-600 max-w-sm">
+            <Disc size={48} className="mx-auto mb-4 opacity-20" />
+            <p className="font-light">This palette is empty.</p>
+          </div>
+        </div>
+      )}
+
+      {showIntro && (
+        <div className="absolute bottom-8 right-8 z-30 bg-black/40 backdrop-blur-md border border-white/5 p-4 rounded-lg max-w-xs text-sm text-neutral-300 pointer-events-auto">
+          <div className="flex justify-between items-start mb-2">
+            <span className="font-medium text-white">How to explore</span>
+            <button onClick={() => setShowIntro(false)}><X size={14}/></button>
+          </div>
+          <p className="leading-relaxed opacity-80">
+            Move your cursor — or drag your finger — across the field to tune into memories like a radio.
+          </p>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes pulse-slow {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.1); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 8s ease-in-out infinite;
+        }
+      `}</style>
+    </div>
+  );
+};
+
+const StudioApp = () => {
+  const [palettes, setPalettes] = useState(samplePalettes);
   const [currentPalette, setCurrentPalette] = useState([]);
   const [viewedPalette, setViewedPalette] = useState(null);
   
@@ -522,8 +803,9 @@ const App = () => {
   const [isArchiveModalOpen, setArchiveModalOpen] = useState(false);
   const [isLibraryOpen, setLibraryOpen] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
-  const [kinectEnabled, setKinectEnabled] = useState(import.meta.env.VITE_KINECT_ON === 'true');
-  const [kinectPositions, setKinectPositions] = useState([]);
+  const [trackingSource, setTrackingSource] = useState(INITIAL_TRACKING_SOURCE);
+  const [trackingPositions, setTrackingPositions] = useState([]);
+  const [showCalibration, setShowCalibration] = useState(false);
 
   const activeNodes = viewedPalette ? viewedPalette.nodes : currentPalette;
   const containerRef = useRef(null);
@@ -542,10 +824,10 @@ const App = () => {
     updateMixing(x, y, rect.width, rect.height);
   };
 
-  const handleKinectPositions = useCallback((positions) => {
+  const handleTrackingPositions = useCallback((positions) => {
     if (!containerRef.current) return;
     const { width, height } = containerRef.current.getBoundingClientRect();
-    setKinectPositions(positions);
+    setTrackingPositions(positions);
     initAudio();
     if (MULTI_PERSON) {
       updateMixingMulti(
@@ -558,12 +840,31 @@ const App = () => {
     }
   }, [updateMixing, updateMixingMulti, initAudio]);
 
+  const toggleTrackingSource = (source) => {
+    setTrackingSource(prev => {
+      const next = prev === source ? 'off' : source;
+      // Auto-show the calibration preview when webcam tracking turns on,
+      // so setup/errors are visible immediately; hide it otherwise.
+      setShowCalibration(next === 'webcam');
+      return next;
+    });
+    // Clear stale dots from the previous source.
+    setTrackingPositions([]);
+  };
+
   useKinectron({
     ip: KINECTRON_IP,
-    enabled: kinectEnabled,
+    enabled: trackingSource === 'kinect',
     simulate: import.meta.env.VITE_KINECT_SIMULATE === 'true',
     multiPerson: MULTI_PERSON,
-    onPositions: handleKinectPositions,
+    onPositions: handleTrackingPositions,
+  });
+
+  const { stream: webcamStream, rawPositions: webcamRawPositions, error: webcamError } = useMediaPipePose({
+    enabled: trackingSource === 'webcam',
+    simulate: import.meta.env.VITE_WEBCAM_SIMULATE === 'true',
+    multiPerson: MULTI_PERSON,
+    onPositions: handleTrackingPositions,
   });
 
   const addNode = (data) => {
@@ -638,7 +939,7 @@ const App = () => {
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`}}
         />
-        {kinectEnabled && kinectPositions.map((pos, i) => (
+        {trackingSource !== 'off' && trackingPositions.map((pos, i) => (
           <div
             key={i}
             className="absolute pointer-events-none z-10"
@@ -753,16 +1054,42 @@ const App = () => {
         )}
 
         <div className="flex items-center space-x-3">
+          {trackingSource === 'webcam' && (
+            <button
+              onClick={() => setShowCalibration(prev => !prev)}
+              className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center transition-all outline-none ${
+                showCalibration
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                  : 'bg-black/20 border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white'
+              }`}
+              title={showCalibration ? 'Hide webcam calibration preview' : 'Show webcam calibration preview'}
+            >
+              <Crosshair size={20} />
+            </button>
+          )}
+
           <button
-            onClick={() => setKinectEnabled(prev => !prev)}
+            onClick={() => toggleTrackingSource('kinect')}
             className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center transition-all outline-none ${
-              kinectEnabled
+              trackingSource === 'kinect'
                 ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
                 : 'bg-black/20 border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white'
             }`}
-            title={kinectEnabled ? 'Kinect active — click to disable' : 'Enable Kinect input'}
+            title={trackingSource === 'kinect' ? 'Kinect active — click to disable' : 'Enable Kinect input'}
           >
             <Radio size={20} />
+          </button>
+
+          <button
+            onClick={() => toggleTrackingSource('webcam')}
+            className={`w-12 h-12 rounded-full backdrop-blur-sm border flex items-center justify-center transition-all outline-none ${
+              trackingSource === 'webcam'
+                ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                : 'bg-black/20 border-white/10 text-neutral-400 hover:bg-white/10 hover:text-white'
+            }`}
+            title={trackingSource === 'webcam' ? 'Webcam tracking active — click to disable' : 'Enable webcam body tracking'}
+          >
+            <Camera size={20} />
           </button>
 
           <button
@@ -785,7 +1112,16 @@ const App = () => {
         </div>
       </div>
 
-      <UploadModal 
+      {trackingSource === 'webcam' && showCalibration && (
+        <WebcamPreview
+          stream={webcamStream}
+          rawPositions={webcamRawPositions}
+          error={webcamError}
+          onClose={() => setShowCalibration(false)}
+        />
+      )}
+
+      <UploadModal
         isOpen={isModalOpen} 
         onClose={() => setModalOpen(false)} 
         onAdd={addNode} 
@@ -797,10 +1133,11 @@ const App = () => {
         onConfirm={confirmArchive}
       />
 
-      <LibraryDrawer 
+      <LibraryDrawer
         isOpen={isLibraryOpen}
         onClose={() => setLibraryOpen(false)}
         palettes={palettes}
+        onDownloadSouvenir={downloadSouvenir}
         onLoadPalette={(p) => {
           setViewedPalette(p);
           setLibraryOpen(false);
@@ -825,6 +1162,13 @@ const App = () => {
       `}</style>
     </div>
   );
+};
+
+// A ?palette=<slug> query param switches to the standalone, view-only
+// souvenir page instead of the full studio.
+const App = () => {
+  const paletteSlug = new URLSearchParams(window.location.search).get('palette');
+  return paletteSlug ? <PaletteView slug={paletteSlug} /> : <StudioApp />;
 };
 
 export default App;
