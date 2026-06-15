@@ -1,0 +1,118 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2870
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fnil\fcharset0 Menlo-Regular;\f1\fnil\fcharset0 Menlo-Bold;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red162\green168\blue247;\red64\green11\blue217;
+\red47\green180\blue29;}
+{\*\expandedcolortbl;;\csgray\c0;\cssrgb\c69412\c72549\c97647;\cssrgb\c32309\c18666\c88229;
+\cssrgb\c20241\c73898\c14950;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx560\tx1120\tx1680\tx2240\tx2800\tx3360\tx3920\tx4480\tx5040\tx5600\tx6160\tx6720\pardirnatural\partightenfactor0
+
+\f0\fs22 \cf2 \CocoaLigature0  Build's good. Here's the calibration walkthrough for when you're back at the\
+  installation:\
+\
+  
+\f1\b 1. Turn on the webcam preview
+\f0\b0 \
+\
+  In the bottom control bar of the app:\
+  1. Click the 
+\f1\b camera icon
+\f0\b0  to turn on webcam tracking. Your browser will ask for\
+  camera permission \'97 click Allow. \
+  2. A new 
+\f1\b crosshair icon
+\f0\b0  appears next to it. Click that to open the "Webcam\
+  Calibration" box in the bottom-right corner of the screen.\
+  \
+  You'll now see a small video preview of what the laptop's webcam sees, plus\
+  some text below it.\
+\
+  
+\f1\b 2. Set up the laptop
+\f0\b0 \
+  \
+  Open the laptop and place it at one edge of the floor area, screen facing into\
+  the space, so the webcam can see the whole area people will walk around in.\
+  It doesn't need to be perfectly aimed \'97 you'll calibrate around wherever it\
+  ends up.\
+\
+  
+\f1\b 3. Calibrate left/right (\cf3 camMinX\cf2  / \cf3 camMaxX\cf2 )
+\f0\b0 \
+\
+  I added a live readout to make this purely "read a number, write it down" \'97 no\
+  need to judge positions visually.\
+\
+  1. Stand at whichever edge of the floor area you want to correspond to the\
+  
+\f1\b left side
+\f0\b0  of the projection.\
+  2. Look at the calibration box. Under the video, you'll see a line like:\
+  \cf3 left/right: 0.XXX (currently left=0.15, right=0.85)\cf2 \
+  3. Write down that number. This will become your new \cf3 camMinX\cf2 .\
+  4. Now walk to the edge that should correspond to the 
+\f1\b right side
+\f0\b0  of the\
+  projection.\
+  5. Write down the new \cf3 left/right\cf2  number. This becomes your new \cf3 camMaxX\cf2 .\
+\
+  Don't worry about which number is bigger \'97 just write down whatever you see at\
+  each spot.\
+  \
+  
+\f1\b 4. Calibrate near/far (\cf3 camNearTorso\cf2  / \cf3 camFarTorso\cf2 )
+\f0\b0 \
+\
+  Same idea, second line of the readout:\
+  \cf3 near/far: 0.XXX (currently near=0.35, far=0.12)\cf2 \
+\
+  1. Stand at the spot 
+\f1\b closest to the camera
+\f0\b0  that people would realistically\
+  stand. Write down the \cf3 near/far\cf2  number \'97 this becomes \cf3 camNearTorso\cf2 .\
+  2. Stand at the spot 
+\f1\b farthest from the camera
+\f0\b0 . Write down that number \'97 this\
+  becomes \cf3 camFarTorso\cf2 .\
+\
+  This number is just "how tall your torso looks" \'97 naturally bigger when you're\
+  close, smaller when you're far. You don't need to think about it beyond\
+  "stand here, write the number down."\
+  \
+  
+\f1\b 5.
+\f0\b0  
+\f1\b Enter
+\f0\b0  
+\f1\b the
+\f0\b0  
+\f1\b numbers
+\f0\b0 \
+\
+  Open \cf3 src/useMediaPipePose.js\cf2 . Near the top (around lines 20 and 29-30) you'll\
+  see:\
+\
+  \cf4 export\cf2  \cf4 const\cf2  camMinX = \cf5 0.15\cf2 ;\
+  \cf4 export\cf2  \cf4 const\cf2  camMaxX = \cf5 0.85\cf2 ;\
+  ...\
+  \cf4 export\cf2  \cf4 const\cf2  camNearTorso = \cf5 0.35\cf2 ;\
+  \cf4 export\cf2  \cf4 const\cf2  camFarTorso = \cf5 0.12\cf2 ;\
+  \
+  Replace each with the number you wrote down in the matching spot (left \uc0\u8594 \
+  \cf3 camMinX\cf2 , right \uc0\u8594  \cf3 camMaxX\cf2 , near \uc0\u8594  \cf3 camNearTorso\cf2 , far \uc0\u8594  \cf3 camFarTorso\cf2 ). Save the\
+  file.\
+  \
+  
+\f1\b 6.
+\f0\b0  
+\f1\b Test
+\f0\b0 \
+\
+  If running \cf3 npm run dev\cf2 , the page should reload automatically. Walk around the\
+  floor \'97 moving side to side should move the highlighted sound side to side,\
+  and moving toward/away from the camera should move it correspondingly. If one\
+  axis feels reversed or cramped, just repeat steps 3-4 (or 4 alone) and try\
+  again \'97 it's just two numbers per axis, so it's quick to redo.\
+\
+  One tip: do this with only yourself in frame (not a second person), so the\
+  numbers in the readout are unambiguous.}

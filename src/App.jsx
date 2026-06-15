@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio, Camera, Crosshair, Download } from 'lucide-react';
 import { analyzeDescription } from './colorWords';
 import { useKinectron } from './useKinectron';
-import { useMediaPipePose, camMinX, camMaxX, camNearY, camFarY, camMinXFeet, camMaxXFeet, camNearYFeet, camFarYFeet } from './useMediaPipePose';
+import { useMediaPipePose, camMinX, camMaxX, camNearTorso, camFarTorso } from './useMediaPipePose';
 import samplePalettes from './samplePalettes';
 import SOUND_LIBRARY from './soundLibrary';
 import { assetPath } from './assetPath';
@@ -585,10 +585,11 @@ const LibraryDrawer = ({ isOpen, onClose, palettes, onLoadPalette, onDownloadSou
   );
 };
 
-// Live webcam feed with an overlay showing the calibrated floor area
-// (dashed box) and the currently tracked body position(s) (dots).
-// Used to set up and verify the camMinX/camMaxX/camNearY/camFarY bounds
-// in useMediaPipePose.js for a given room and camera placement.
+// Live webcam feed with an overlay showing the calibrated X range (dashed
+// lines), the tracked hip position (dot), and the shoulder-to-hip torso
+// span (vertical bar) used to estimate depth. Used to set up and verify the
+// camMinX/camMaxX/camNearTorso/camFarTorso bounds in useMediaPipePose.js for
+// a given room and camera placement.
 const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
   const videoRef = useRef(null);
 
@@ -608,39 +609,39 @@ const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
         ) : (
           <>
             <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-            {/* Calibrated floor area (hip tracking) */}
+            {/* Calibrated X range (left/right) */}
             <div
-              className="absolute border-2 border-dashed border-emerald-400/70 pointer-events-none"
+              className="absolute top-0 bottom-0 border-x-2 border-dashed border-emerald-400/70 pointer-events-none"
               style={{
                 left: `${camMinX * 100}%`,
-                top: `${camFarY * 100}%`,
                 width: `${(camMaxX - camMinX) * 100}%`,
-                height: `${(camNearY - camFarY) * 100}%`,
               }}
             />
-            {/* Calibrated floor area (foot-tracking fallback) */}
-            <div
-              className="absolute border-2 border-dashed border-amber-400/70 pointer-events-none"
-              style={{
-                left: `${camMinXFeet * 100}%`,
-                top: `${camFarYFeet * 100}%`,
-                width: `${(camMaxXFeet - camMinXFeet) * 100}%`,
-                height: `${(camNearYFeet - camFarYFeet) * 100}%`,
-              }}
-            />
-            {/* Detected body position(s) — green for hip tracking, amber for foot fallback */}
+            {/* Detected body position(s): hip dot + torso span (shoulder-to-hip) */}
             {rawPositions.map((pos, i) => (
-              <div
-                key={i}
-                className={`absolute w-3 h-3 -m-1.5 rounded-full border border-white/80 pointer-events-none ${pos.source === 'foot' ? 'bg-amber-400' : 'bg-emerald-400'}`}
-                style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
-              />
+              <div key={i} className="absolute top-0 bottom-0 pointer-events-none" style={{ left: `${pos.x * 100}%` }}>
+                <div
+                  className="absolute border-l-2 border-emerald-400/70"
+                  style={{ top: `${pos.shoulderY * 100}%`, height: `${pos.torsoHeight * 100}%` }}
+                />
+                <div
+                  className="absolute w-3 h-3 -m-1.5 rounded-full border border-white/80 bg-emerald-400"
+                  style={{ top: `${pos.y * 100}%` }}
+                />
+              </div>
             ))}
           </>
         )}
       </div>
       <p className="px-3 py-2 text-[10px] text-neutral-500 leading-relaxed">
-        Green dashed box / dot: hip tracking. Amber dashed box / dot: foot-tracking fallback (used when hips are out of frame). Adjust camMinX/camMaxX/camNearY/camFarY and camMinXFeet/camMaxXFeet/camNearYFeet/camFarYFeet in useMediaPipePose.js to match your projection.
+        Stand at each edge of the floor area and write down these two numbers.
+        {rawPositions.map((pos, i) => (
+          <span key={i} className="block font-mono mt-1">
+            left/right: {pos.x.toFixed(3)} (currently left={camMinX}, right={camMaxX})<br />
+            near/far: {pos.torsoHeight.toFixed(3)} (currently near={camNearTorso}, far={camFarTorso})
+          </span>
+        ))}
+        {' '}Enter the numbers as camMinX/camMaxX/camNearTorso/camFarTorso in useMediaPipePose.js.
       </p>
     </div>
   );

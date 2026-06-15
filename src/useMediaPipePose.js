@@ -9,71 +9,63 @@ import { assetPath } from './assetPath';
 // with the app so this works without an internet connection.
 
 // ── Calibration ─────────────────────────────────────────────────────────
-// Assumes the webcam is mounted with a view across the floor-projection
-// area, the same way the Kinect was mounted at the side of the floor.
-// Values below are normalized camera-image coordinates (0.0–1.0), where
-// (0,0) is the top-left corner of the frame and (1,1) is bottom-right.
-//
-// To calibrate: enable the camera preview (camera icon), stand at the
-// edges of the projected floor area, and read the tracking dot's position
-// in the preview to set these bounds for your room.
+// Assumes the webcam faces forward (horizontally) across the field, e.g.
+// an open laptop sitting at one edge of the floor area, facing into it.
+// These will likely need recalibrating for your specific camera placement —
+// enable the camera preview (camera icon) to read live values while you
+// stand at the edges of the floor area.
 
-// Image X (left/right in frame) maps to field Y (left/right),
-// matching the Kinect's depthX -> Y mapping.
+// Image X (left/right in frame, normalized 0.0-1.0) maps directly to
+// field X (left/right).
 export const camMinX = 0.15;
 export const camMaxX = 0.85;
 
-// Image Y (up/down in frame) maps to field X (near/far),
-// matching the Kinect's depth -> X mapping.
-// Lower in frame (larger Y) = nearer the camera.
-export const camNearY = 1.0;
-export const camFarY = 0.55;
-
-// ── Foot-tracking fallback ──────────────────────────────────────────────
-// Used when the hips are out of frame (e.g. someone standing close enough
-// to the camera that only their feet are visible). Ankles sit higher in the
-// frame than hips for the same floor position, so this needs its own Y
-// calibration. X bounds are reused from the hip calibration since ankles
-// are roughly below the hips horizontally.
-//
-// To calibrate: stand close to the camera (where hips drop out) at the
-// near/far/left/right limits of the floor area and adjust these so the
-// foot-tracking dot in the preview lines up with the dashed box.
-export const camMinXFeet = camMinX;
-export const camMaxXFeet = camMaxX;
-export const camNearYFeet = 0.95;
-export const camFarYFeet = 0.30;
+// Depth (field Y, near/far) is estimated from torso height — the normalized
+// vertical distance between the shoulder midpoint and hip midpoint, which
+// shrinks the farther you are from the camera. camNearTorso is the torso
+// height at the near edge of the field (maps to field Y = 100); camFarTorso
+// is the torso height at the far edge (maps to field Y = 0). The preview
+// shows live torso-height readings to help set these.
+export const camNearTorso = 0.35;
+export const camFarTorso = 0.12;
 
 // Maximum number of bodies to track.
 const MAX_BODIES = 2;
 
-// Pose landmark indices for left/right hip (used as body-center point).
+// Pose landmark indices for left/right shoulder and hip, used to compute
+// the body-center X position (hips) and torso height (shoulder-to-hip span).
+const LEFT_SHOULDER = 11;
+const RIGHT_SHOULDER = 12;
 const LEFT_HIP = 23;
 const RIGHT_HIP = 24;
 
-// Pose landmark indices for left/right ankle (fallback when hips aren't visible).
-const LEFT_ANKLE = 27;
-const RIGHT_ANKLE = 28;
-
 const MIN_VISIBILITY = 0.5;
+
+// EMA smoothing factor applied to tracked positions, in (0, 1]. Lower values
+// are smoother but lag more behind real movement; 1 disables smoothing.
+// Pose landmarks wobble slightly frame-to-frame even when standing still,
+// which this irons out.
+const POSITION_SMOOTHING = 0.25;
 
 const WASM_PATH = assetPath('/mediapipe/wasm');
 const MODEL_PATH = assetPath('/models/pose_landmarker_lite.task');
 
 /**
  * Tracks body position via the webcam and calls onPositions([{x,y}, ...])
- * with an array of normalized 0–100 positions each frame, in the same
- * format as useKinectron. In single-person mode the array has one element;
- * in multi-person mode up to two.
+ * with an array of positions each frame, each axis clamped to 0–100, in
+ * the same format as useKinectron. In single-person mode the array has one
+ * element; in multi-person mode up to two.
  *
- * Also returns the live camera `stream` and `rawPositions` (normalized
- * 0.0–1.0 image coordinates, each with a `source: 'hip' | 'foot'` tag) for
- * rendering a calibration preview.
+ * Positions are smoothed frame-to-frame (see POSITION_SMOOTHING) to reduce
+ * jitter from the pose model.
  *
- * The tracked point is normally the hip midpoint. If the hips aren't
- * visible (e.g. someone standing close enough to the camera that only their
- * feet are in frame), it falls back to the ankle midpoint, mapped using the
- * separate camMinXFeet/camMaxXFeet/camNearYFeet/camFarYFeet calibration.
+ * X comes from the hip midpoint's horizontal image position. Y (depth) is
+ * estimated from torso height (see camNearTorso/camFarTorso above); a body
+ * is skipped for a frame if its hips or shoulders aren't both visible.
+ *
+ * Also returns the live camera `stream` and `rawPositions` (unsmoothed,
+ * normalized 0.0–1.0 image coordinates plus `shoulderY` and `torsoHeight`)
+ * for rendering a calibration preview.
  */
 export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }) {
   const [stream, setStream] = useState(null);
@@ -131,6 +123,10 @@ export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }
     video.style.height = '1px';
     document.body.appendChild(video);
 
+    // Previous frame's smoothed positions, by body index. Persists across
+    // detectFrame calls within this effect run.
+    let smoothedPositions = [];
+
     const detectFrame = () => {
       if (cancelled) return;
 
@@ -145,35 +141,41 @@ export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }
           const landmarks = result.landmarks[i];
           const leftHip = landmarks[LEFT_HIP];
           const rightHip = landmarks[RIGHT_HIP];
+          const leftShoulder = landmarks[LEFT_SHOULDER];
+          const rightShoulder = landmarks[RIGHT_SHOULDER];
 
-          let imgX, imgY, minX, maxX, nearY, farY, source;
+          if (
+            leftHip.visibility < MIN_VISIBILITY || rightHip.visibility < MIN_VISIBILITY ||
+            leftShoulder.visibility < MIN_VISIBILITY || rightShoulder.visibility < MIN_VISIBILITY
+          ) continue;
 
-          if (leftHip.visibility >= MIN_VISIBILITY && rightHip.visibility >= MIN_VISIBILITY) {
-            imgX = (leftHip.x + rightHip.x) / 2;
-            imgY = (leftHip.y + rightHip.y) / 2;
-            minX = camMinX; maxX = camMaxX; nearY = camNearY; farY = camFarY;
-            source = 'hip';
-          } else {
-            const leftAnkle = landmarks[LEFT_ANKLE];
-            const rightAnkle = landmarks[RIGHT_ANKLE];
-            if (leftAnkle.visibility < MIN_VISIBILITY || rightAnkle.visibility < MIN_VISIBILITY) continue;
+          const hipX = (leftHip.x + rightHip.x) / 2;
+          const hipY = (leftHip.y + rightHip.y) / 2;
+          const shoulderY = (leftShoulder.y + rightShoulder.y) / 2;
+          const torsoHeight = Math.abs(hipY - shoulderY);
 
-            imgX = (leftAnkle.x + rightAnkle.x) / 2;
-            imgY = (leftAnkle.y + rightAnkle.y) / 2;
-            minX = camMinXFeet; maxX = camMaxXFeet; nearY = camNearYFeet; farY = camFarYFeet;
-            source = 'foot';
-          }
+          raw.push({ x: hipX, y: hipY, shoulderY, torsoHeight });
 
-          raw.push({ x: imgX, y: imgY, source });
+          const x = clamp(normalizeWebcamValue(hipX, camMinX, camMaxX) * 100, 0, 100);
+          const y = clamp(normalizeWebcamValue(torsoHeight, camFarTorso, camNearTorso) * 100, 0, 100);
 
-          const y = normalizeWebcamValue(imgX, minX, maxX) * 100;
-          const x = normalizeWebcamValue(imgY, nearY, farY) * 100;
-
-          if (x >= 0 && x <= 100 && y >= 0 && y <= 100) positions.push({ x, y });
+          positions.push({ x, y });
         }
 
         setRawPositions(raw);
-        if (positions.length > 0) onPositionsRef.current(positions);
+
+        if (positions.length > 0) {
+          smoothedPositions = positions.map((p, i) => {
+            const prev = smoothedPositions[i];
+            return prev
+              ? {
+                  x: prev.x + (p.x - prev.x) * POSITION_SMOOTHING,
+                  y: prev.y + (p.y - prev.y) * POSITION_SMOOTHING,
+                }
+              : p;
+          });
+          onPositionsRef.current(smoothedPositions);
+        }
       }
 
       rafId = requestAnimationFrame(detectFrame);
@@ -227,11 +229,19 @@ export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }
 
 /*
  * normalizeWebcamValue
- * @param {number} value - One normalized image coordinate (0.0-1.0) from the camera.
+ * @param {number} value - A normalized value derived from the camera image
+ *   (e.g. an image coordinate or torso height), roughly in 0.0-1.0.
  * @param {number} min - Calibrated value corresponding to field position 0.
  * @param {number} max - Calibrated value corresponding to field position 100.
  * @return {number} normalized coordinate value in interval [0.0, 1.0] (when within bounds).
  */
 function normalizeWebcamValue(value, min, max) {
   return (value - min) / (max - min);
+}
+
+// Constrains value to the [min, max] range, so tracked positions always stay
+// within the field's boundaries even if someone stands past a calibrated
+// near/far/left/right limit.
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
