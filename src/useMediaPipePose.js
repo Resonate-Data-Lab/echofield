@@ -29,12 +29,32 @@ export const camMaxX = 0.85;
 export const camNearY = 0.95;
 export const camFarY = 0.30;
 
+// ── Foot-tracking fallback ──────────────────────────────────────────────
+// Used when the hips are out of frame (e.g. someone standing close enough
+// to the camera that only their feet are visible). Ankles sit lower in the
+// frame than hips for the same floor position, so this needs its own Y
+// calibration. X bounds are reused from the hip calibration since ankles
+// are roughly below the hips horizontally.
+//
+// To calibrate: stand close to the camera (where hips drop out) at the
+// near/far/left/right limits of the floor area and adjust these so the
+// foot-tracking dot in the preview lines up with the dashed box.
+export const camMinXFeet = camMinX;
+export const camMaxXFeet = camMaxX;
+export const camNearYFeet = 1.0;
+export const camFarYFeet = 0.55;
+
 // Maximum number of bodies to track.
 const MAX_BODIES = 2;
 
 // Pose landmark indices for left/right hip (used as body-center point).
 const LEFT_HIP = 23;
 const RIGHT_HIP = 24;
+
+// Pose landmark indices for left/right ankle (fallback when hips aren't visible).
+const LEFT_ANKLE = 27;
+const RIGHT_ANKLE = 28;
+
 const MIN_VISIBILITY = 0.5;
 
 const WASM_PATH = assetPath('/mediapipe/wasm');
@@ -47,7 +67,13 @@ const MODEL_PATH = assetPath('/models/pose_landmarker_lite.task');
  * in multi-person mode up to two.
  *
  * Also returns the live camera `stream` and `rawPositions` (normalized
- * 0.0–1.0 image coordinates) for rendering a calibration preview.
+ * 0.0–1.0 image coordinates, each with a `source: 'hip' | 'foot'` tag) for
+ * rendering a calibration preview.
+ *
+ * The tracked point is normally the hip midpoint. If the hips aren't
+ * visible (e.g. someone standing close enough to the camera that only their
+ * feet are in frame), it falls back to the ankle midpoint, mapped using the
+ * separate camMinXFeet/camMaxXFeet/camNearYFeet/camFarYFeet calibration.
  */
 export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }) {
   const [stream, setStream] = useState(null);
@@ -119,14 +145,29 @@ export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }
           const landmarks = result.landmarks[i];
           const leftHip = landmarks[LEFT_HIP];
           const rightHip = landmarks[RIGHT_HIP];
-          if (leftHip.visibility < MIN_VISIBILITY || rightHip.visibility < MIN_VISIBILITY) continue;
 
-          const imgX = (leftHip.x + rightHip.x) / 2;
-          const imgY = (leftHip.y + rightHip.y) / 2;
-          raw.push({ x: imgX, y: imgY });
+          let imgX, imgY, minX, maxX, nearY, farY, source;
 
-          const y = normalizeWebcamValue(imgX, camMinX, camMaxX) * 100;
-          const x = normalizeWebcamValue(imgY, camNearY, camFarY) * 100;
+          if (leftHip.visibility >= MIN_VISIBILITY && rightHip.visibility >= MIN_VISIBILITY) {
+            imgX = (leftHip.x + rightHip.x) / 2;
+            imgY = (leftHip.y + rightHip.y) / 2;
+            minX = camMinX; maxX = camMaxX; nearY = camNearY; farY = camFarY;
+            source = 'hip';
+          } else {
+            const leftAnkle = landmarks[LEFT_ANKLE];
+            const rightAnkle = landmarks[RIGHT_ANKLE];
+            if (leftAnkle.visibility < MIN_VISIBILITY || rightAnkle.visibility < MIN_VISIBILITY) continue;
+
+            imgX = (leftAnkle.x + rightAnkle.x) / 2;
+            imgY = (leftAnkle.y + rightAnkle.y) / 2;
+            minX = camMinXFeet; maxX = camMaxXFeet; nearY = camNearYFeet; farY = camFarYFeet;
+            source = 'foot';
+          }
+
+          raw.push({ x: imgX, y: imgY, source });
+
+          const y = normalizeWebcamValue(imgX, minX, maxX) * 100;
+          const x = normalizeWebcamValue(imgY, nearY, farY) * 100;
 
           if (x >= 0 && x <= 100 && y >= 0 && y <= 100) positions.push({ x, y });
         }

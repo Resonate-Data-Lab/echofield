@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Plus, Archive, RefreshCw, Volume2, Info, X, Music, Disc, BookOpen, ArrowLeft, Hash, Radio, Camera, Crosshair, Download } from 'lucide-react';
 import { analyzeDescription } from './colorWords';
 import { useKinectron } from './useKinectron';
-import { useMediaPipePose, camMinX, camMaxX, camNearY, camFarY } from './useMediaPipePose';
+import { useMediaPipePose, camMinX, camMaxX, camNearY, camFarY, camMinXFeet, camMaxXFeet, camNearYFeet, camFarYFeet } from './useMediaPipePose';
 import samplePalettes from './samplePalettes';
 import SOUND_LIBRARY from './soundLibrary';
 import { assetPath } from './assetPath';
@@ -608,7 +608,7 @@ const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
         ) : (
           <>
             <video ref={videoRef} autoPlay muted playsInline className="w-full h-full object-cover" />
-            {/* Calibrated floor area */}
+            {/* Calibrated floor area (hip tracking) */}
             <div
               className="absolute border-2 border-dashed border-emerald-400/70 pointer-events-none"
               style={{
@@ -618,11 +618,21 @@ const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
                 height: `${(camNearY - camFarY) * 100}%`,
               }}
             />
-            {/* Detected body position(s) */}
+            {/* Calibrated floor area (foot-tracking fallback) */}
+            <div
+              className="absolute border-2 border-dashed border-amber-400/70 pointer-events-none"
+              style={{
+                left: `${camMinXFeet * 100}%`,
+                top: `${camFarYFeet * 100}%`,
+                width: `${(camMaxXFeet - camMinXFeet) * 100}%`,
+                height: `${(camNearYFeet - camFarYFeet) * 100}%`,
+              }}
+            />
+            {/* Detected body position(s) — green for hip tracking, amber for foot fallback */}
             {rawPositions.map((pos, i) => (
               <div
                 key={i}
-                className="absolute w-3 h-3 -m-1.5 rounded-full bg-emerald-400 border border-white/80 pointer-events-none"
+                className={`absolute w-3 h-3 -m-1.5 rounded-full border border-white/80 pointer-events-none ${pos.source === 'foot' ? 'bg-amber-400' : 'bg-emerald-400'}`}
                 style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }}
               />
             ))}
@@ -630,7 +640,7 @@ const WebcamPreview = ({ stream, rawPositions, error, onClose }) => {
         )}
       </div>
       <p className="px-3 py-2 text-[10px] text-neutral-500 leading-relaxed">
-        Dashed box is the calibrated floor area. Stand at its edges and adjust camMinX/camMaxX/camNearY/camFarY in useMediaPipePose.js to match your projection.
+        Green dashed box / dot: hip tracking. Amber dashed box / dot: foot-tracking fallback (used when hips are out of frame). Adjust camMinX/camMaxX/camNearY/camFarY and camMinXFeet/camMaxXFeet/camNearYFeet/camFarYFeet in useMediaPipePose.js to match your projection.
       </p>
     </div>
   );

@@ -147,7 +147,7 @@ Like the Kinect setup, this assumes the display is **projected onto the floor**,
 - Camera image **Y** (up/down in frame) → field **X** axis (near/far — lower in frame = closer to the camera)
 - Camera image **X** (left/right in frame) → field **Y** axis (left/right)
 
-The tracked point is the midpoint between the left and right hip landmarks.
+The tracked point is normally the midpoint between the left and right hip landmarks. If the hips aren't visible — e.g. someone standing close enough to the camera that only their feet are in frame — tracking falls back to the midpoint between the left and right ankle landmarks instead.
 
 Calibration bounds are set in `src/useMediaPipePose.js`:
 
@@ -159,16 +159,26 @@ export const camMaxX = 0.85;
 // Image Y (up/down in frame) -> field X (near/far)
 export const camNearY = 0.95; // lower in frame = nearer the camera
 export const camFarY = 0.30;  // higher in frame = farther from the camera
+
+// Foot-tracking fallback (used when hips are out of frame)
+export const camMinXFeet = camMinX;
+export const camMaxXFeet = camMaxX;
+export const camNearYFeet = 1.0;
+export const camFarYFeet = 0.55;
 ```
+
+Feet sit lower in the frame than hips for the same floor position, so the foot fallback needs its own Y calibration (`camNearYFeet`/`camFarYFeet`) — the X bounds are usually fine to share with the hip calibration.
 
 To calibrate for a room:
 
 1. Enable webcam tracking (Camera icon) — the calibration preview opens automatically
-2. Stand at each corner of the floor-projection area
-3. Watch the green dot in the preview and adjust `camMinX`/`camMaxX`/`camNearY`/`camFarY` so the dashed rectangle matches the corners where people will stand
-4. The **Crosshair icon** (bottom right, only visible while webcam tracking is active) toggles the calibration preview on/off at any time
+2. Stand at each corner of the floor-projection area where your **hips** are visible to the camera
+3. Watch the green dot and adjust `camMinX`/`camMaxX`/`camNearY`/`camFarY` so the green dashed rectangle matches those corners
+4. Then move to the area close to the camera where only your **feet** are visible (hips out of frame)
+5. Watch the amber dot and adjust `camMinXFeet`/`camMaxXFeet`/`camNearYFeet`/`camFarYFeet` so the amber dashed rectangle matches the near corners of the floor area
+6. The **Crosshair icon** (bottom right, only visible while webcam tracking is active) toggles the calibration preview on/off at any time
 
-A person is only reported as a tracked position while their hip-center falls inside the calibrated rectangle — standing outside it (e.g., off to the side, out of frame) produces no position, same as the Kinect's out-of-bounds behavior.
+A person is only reported as a tracked position while their hip-center (or, as a fallback, ankle-center) falls inside the corresponding calibrated rectangle — standing outside both (e.g., off to the side, out of frame) produces no position, same as the Kinect's out-of-bounds behavior.
 
 ### Assets
 
