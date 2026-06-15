@@ -26,12 +26,12 @@ export const camMaxX = 0.85;
 // Image Y (up/down in frame) maps to field X (near/far),
 // matching the Kinect's depth -> X mapping.
 // Lower in frame (larger Y) = nearer the camera.
-export const camNearY = 0.95;
-export const camFarY = 0.30;
+export const camNearY = 1.0;
+export const camFarY = 0.55;
 
 // ── Foot-tracking fallback ──────────────────────────────────────────────
 // Used when the hips are out of frame (e.g. someone standing close enough
-// to the camera that only their feet are visible). Ankles sit lower in the
+// to the camera that only their feet are visible). Ankles sit higher in the
 // frame than hips for the same floor position, so this needs its own Y
 // calibration. X bounds are reused from the hip calibration since ankles
 // are roughly below the hips horizontally.
@@ -41,8 +41,8 @@ export const camFarY = 0.30;
 // foot-tracking dot in the preview lines up with the dashed box.
 export const camMinXFeet = camMinX;
 export const camMaxXFeet = camMaxX;
-export const camNearYFeet = 1.0;
-export const camFarYFeet = 0.55;
+export const camNearYFeet = 0.95;
+export const camFarYFeet = 0.30;
 
 // Maximum number of bodies to track.
 const MAX_BODIES = 2;
