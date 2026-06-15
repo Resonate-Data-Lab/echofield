@@ -26,7 +26,7 @@ const samplePalettes = [
       "audioUrl": "/audio/DIS26_Clapping.m4a",
       "fileName": "DIS26: Clapping",
       "x": 51,
-      "y": 54,
+      "y": 64,
       "date": "6/15/2026"
     },
     {
@@ -46,7 +46,7 @@ const samplePalettes = [
       "audioUrl": "/audio/DIS26_Some_Birds.m4a",
       "fileName": "DIS26: Birds in the Trees",
       "x": 44,
-      "y": 30,
+      "y": 25,
       "date": "6/15/2026"
     },
     {
@@ -56,7 +56,7 @@ const samplePalettes = [
       "audioUrl": "/audio/DIS26_Stairs.m4a",
       "fileName": "DIS26: Walking Down the Stairs",
       "x": 75,
-      "y": 12,
+      "y": 82,
       "date": "6/15/2026"
     }
   ]
