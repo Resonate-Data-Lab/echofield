@@ -60,7 +60,7 @@ const samplePalettes = [
       "date": "6/15/2026"
     }
   ]
-}
+},
 
   {
     id: 'sample-water',
