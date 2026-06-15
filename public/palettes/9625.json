@@ -1,0 +1,17 @@
+{
+  "id": 9625,
+  "name": "My awesome sounds",
+  "date": "6/14/2026",
+  "nodes": [
+    {
+      "id": "1781502021072",
+      "text": "writing on the blackboard",
+      "color": "#e0ecf0",
+      "audioUrl": "/audio/blackboard-writing.wav",
+      "fileName": "Blackboard Writing",
+      "x": 54.16666666666665,
+      "y": 9.019607843137257,
+      "date": "6/14/2026"
+    }
+  ]
+}
