@@ -1,0 +1,57 @@
+{
+  "id": 2364,
+  "name": "Sounds of DIS 2026, Part 1",
+  "date": "6/15/2026",
+  "nodes": [
+    {
+      "id": "1781547082231",
+      "text": "How long does it take to walk from Terminal 2 to Terminal 3?",
+      "color": "#d278d9",
+      "audioUrl": "/audio/DIS26_Walking_to_G_gates.m4a",
+      "fileName": "DIS26: Through the SFO Airport",
+      "x": 82.13058419243987,
+      "y": 33.92156862745098,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547132163",
+      "text": "And the crowd breaks into applause...",
+      "color": "#16c8d4",
+      "audioUrl": "/audio/DIS26_Clapping.m4a",
+      "fileName": "DIS26: Clapping",
+      "x": 51.05263157894737,
+      "y": 54.11764705882353,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547170663",
+      "text": "How long would you wait in line to get some ice cream?",
+      "color": "#ebc60f",
+      "audioUrl": "/audio/DIS26_Ice_cream_lid.m4a",
+      "fileName": "DIS26: Ice Cream",
+      "x": 13.863636363636363,
+      "y": 50.98039215686274,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547238531",
+      "text": "The birds sound tropical.",
+      "color": "#71f4c8",
+      "audioUrl": "/audio/DIS26_Some_Birds.m4a",
+      "fileName": "DIS26: Birds in the Trees",
+      "x": 44.40203562340967,
+      "y": 30.000000000000004,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547298340",
+      "text": "Descending",
+      "color": "#8321d4",
+      "audioUrl": "/audio/DIS26_Stairs.m4a",
+      "fileName": "DIS26: Walking Down the Stairs",
+      "x": 75.79143389199254,
+      "y": 51.96078431372548,
+      "date": "6/15/2026"
+    }
+  ]
+}
