@@ -3,6 +3,65 @@
 // Audio files are served from public/audio/.
 
 const samplePalettes = [
+
+{
+  "id": 2364,
+  "name": "Sounds of DIS 2026, Part 1",
+  "date": "6/15/2026",
+  "nodes": [
+    {
+      "id": "1781547082231",
+      "text": "How long does it take to walk from Terminal 2 to Terminal 3?",
+      "color": "#d278d9",
+      "audioUrl": "/audio/DIS26_Walking_to_G_gates.m4a",
+      "fileName": "DIS26: Through the SFO Airport",
+      "x": 82,
+      "y": 33,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547132163",
+      "text": "And the crowd breaks into applause...",
+      "color": "#16c8d4",
+      "audioUrl": "/audio/DIS26_Clapping.m4a",
+      "fileName": "DIS26: Clapping",
+      "x": 51,
+      "y": 54,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547170663",
+      "text": "How long would you wait in line to get some ice cream?",
+      "color": "#ebc60f",
+      "audioUrl": "/audio/DIS26_Ice_cream_lid.m4a",
+      "fileName": "DIS26: Ice Cream",
+      "x": 13,
+      "y": 50,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547238531",
+      "text": "The birds sound tropical.",
+      "color": "#71f4c8",
+      "audioUrl": "/audio/DIS26_Some_Birds.m4a",
+      "fileName": "DIS26: Birds in the Trees",
+      "x": 44,
+      "y": 30,
+      "date": "6/15/2026"
+    },
+    {
+      "id": "1781547298340",
+      "text": "Descending",
+      "color": "#8321d4",
+      "audioUrl": "/audio/DIS26_Stairs.m4a",
+      "fileName": "DIS26: Walking Down the Stairs",
+      "x": 75,
+      "y": 12,
+      "date": "6/15/2026"
+    }
+  ]
+}
+
   {
     id: 'sample-water',
     name: 'Water in many forms',
