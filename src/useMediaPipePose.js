@@ -17,8 +17,8 @@ import { assetPath } from './assetPath';
 
 // Image X (left/right in frame, normalized 0.0-1.0) maps directly to
 // field X (left/right).
-export const camMinX = 0.15;
-export const camMaxX = 0.85;
+export const camMinX = 0.05;
+export const camMaxX = 0.95;
 
 // Depth (field Y, near/far) is estimated from torso height — the normalized
 // vertical distance between the shoulder midpoint and hip midpoint, which
@@ -26,8 +26,8 @@ export const camMaxX = 0.85;
 // height at the near edge of the field (maps to field Y = 100); camFarTorso
 // is the torso height at the far edge (maps to field Y = 0). The preview
 // shows live torso-height readings to help set these.
-export const camNearTorso = 0.35;
-export const camFarTorso = 0.12;
+export const camNearTorso = 0.42;
+export const camFarTorso = 0.24;
 
 // Maximum number of bodies to track.
 const MAX_BODIES = 2;
@@ -38,6 +38,8 @@ const LEFT_SHOULDER = 11;
 const RIGHT_SHOULDER = 12;
 const LEFT_HIP = 23;
 const RIGHT_HIP = 24;
+const LEFT_WRIST = 15;
+const RIGHT_WRIST = 16;
 
 const MIN_VISIBILITY = 0.5;
 
@@ -157,7 +159,19 @@ export function useMediaPipePose({ enabled, simulate, multiPerson, onPositions }
           raw.push({ x: hipX, y: hipY, shoulderY, torsoHeight });
 
           const x = clamp(normalizeWebcamValue(hipX, camMinX, camMaxX) * 100, 0, 100);
-          const y = clamp(normalizeWebcamValue(torsoHeight, camFarTorso, camNearTorso) * 100, 0, 100);
+          let y = clamp(normalizeWebcamValue(torsoHeight, camFarTorso, camNearTorso) * 100, 0, 100);
+
+          // Arm raise: when wrists are visible and lifted above hip level,
+          // blend Y toward 100 (bottom of field/screen). Gives participants a
+          // direct gestural way to push the position when the torso-height
+          // depth estimate isn't moving enough on its own.
+          const leftWrist = landmarks[LEFT_WRIST];
+          const rightWrist = landmarks[RIGHT_WRIST];
+          if (leftWrist.visibility >= MIN_VISIBILITY && rightWrist.visibility >= MIN_VISIBILITY) {
+            const wristY = (leftWrist.y + rightWrist.y) / 2;
+            const armRaise = clamp((hipY - wristY) / hipY, 0, 1);
+            y = y * (1 - armRaise) + 100 * armRaise;
+          }
 
           positions.push({ x, y });
         }
