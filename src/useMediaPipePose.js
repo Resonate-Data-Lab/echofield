@@ -17,8 +17,8 @@ import { assetPath } from './assetPath';
 
 // Image X (left/right in frame, normalized 0.0-1.0) maps directly to
 // field X (left/right).
-export const camMinX = 0.05;
-export const camMaxX = 0.95;
+export const camMinX = 0.01;
+export const camMaxX = 0.99;
 
 // Depth (field Y, near/far) is estimated from torso height — the normalized
 // vertical distance between the shoulder midpoint and hip midpoint, which
@@ -26,8 +26,8 @@ export const camMaxX = 0.95;
 // height at the near edge of the field (maps to field Y = 100); camFarTorso
 // is the torso height at the far edge (maps to field Y = 0). The preview
 // shows live torso-height readings to help set these.
-export const camNearTorso = 0.42;
-export const camFarTorso = 0.24;
+export const camNearTorso = 0.38;
+export const camFarTorso = 0.20;
 
 // Maximum number of bodies to track.
 const MAX_BODIES = 2;

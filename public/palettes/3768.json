@@ -1,0 +1,57 @@
+{
+  "id": 3768,
+  "name": "Heard around Whitman College, Spring 2026",
+  "date": "7/8/2026",
+  "nodes": [
+    {
+      "id": "1783542042672",
+      "text": "Lakum Dukum, full of life in the spring.",
+      "color": "#f1f50f",
+      "audioUrl": "/audio/lakum-dukum-2.m4a",
+      "fileName": "Lakum Dukum 2",
+      "x": 16.956521739130434,
+      "y": 49.01960784313726,
+      "date": "7/8/2026"
+    },
+    {
+      "id": "1783542103663",
+      "text": "Walking through Ankeny Field, just noticing the sondscape",
+      "color": "#d464e3",
+      "audioUrl": "/audio/plane-overhead_mixdown.wav",
+      "fileName": "Plane Overhead",
+      "x": 81.36482939632546,
+      "y": 35.88235294117648,
+      "date": "7/8/2026"
+    },
+    {
+      "id": "1783542145863",
+      "text": "Don't cross the street yet...",
+      "color": "#c3183a",
+      "audioUrl": "/audio/wait-wait-wait.m4a",
+      "fileName": "Wait Wait Wait",
+      "x": 70,
+      "y": 15,
+      "date": "7/8/2026"
+    },
+    {
+      "id": "1783542176488",
+      "text": "Jazz concert at the Whitman Undergraduate Conference",
+      "color": "#d45211",
+      "audioUrl": "/audio/whitman-undergraduate-conference-jazz.m4a",
+      "fileName": "Whitman Conference Jazz",
+      "x": 20,
+      "y": 25,
+      "date": "7/8/2026"
+    },
+    {
+      "id": "1783542196904",
+      "text": "The roof is leaking",
+      "color": "#15e0dd",
+      "audioUrl": "/audio/olin-leak.wav",
+      "fileName": "Olin Leak",
+      "x": 49.75369458128079,
+      "y": 85,
+      "date": "7/8/2026"
+    }
+  ]
+}

@@ -58,6 +58,16 @@ const samplePalettes = [
       "x": 75,
       "y": 82,
       "date": "6/15/2026"
+    },
+    {
+      "id": "dis1-6",
+      "text": "These roosters are very far from a farm",
+      "color": "#f97316",
+      "audioUrl": "/audio/DIS26_jungleroosters.m4a",
+      "fileName": "DIS26: Roosters in the Jungle",
+      "x": 30,
+      "y": 12,
+      "date": "6/16/2026"
     }
   ]
 },
@@ -76,6 +86,7 @@ const samplePalettes = [
         x: 18, y: 28,
         date: '6/15/2026',
       },
+
       {
         id: 'dis2-2',
         text: 'Music drifting in from a festival',
@@ -111,6 +122,15 @@ const samplePalettes = [
         fileName: 'DIS26: Sarah Pink 1',
         x: 52, y: 50,
         date: '6/15/2026',
+      },
+      {
+        id: 'dis2-6',
+        text: 'Walking through the Kent Ridge Park canopy',
+        color: '#fbbf24',
+        audioUrl: '/audio/DIS26_KentRidgeJungle1.m4a',
+        fileName: 'DIS26: Kent Ridge Park Canopy Walk',
+        x: 65, y: 15,
+        date: '6/16/2026',
       },
     ],
   },
