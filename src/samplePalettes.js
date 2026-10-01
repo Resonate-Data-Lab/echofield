@@ -167,15 +167,6 @@ const samplePalettes = [
         date: '6/15/2026',
       },
       {
-        id: 'dis3-4',
-        text: 'The fan, it feels heavenly',
-        color: '#22d3ee',
-        audioUrl: '/audio/DIS26_fan_heaven.m4a',
-        fileName: 'DIS26: Heavenly Fan',
-        x: 86, y: 56,
-        date: '6/15/2026',
-      },
-      {
         id: 'dis3-5',
         text: 'Applause.',
         color: '#34d399',
